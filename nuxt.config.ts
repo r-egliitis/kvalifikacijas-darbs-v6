@@ -14,8 +14,12 @@ export default defineNuxtConfig({
     '@pinia/nuxt',         // Global state management (stores)
   ],
 
-  // CSS: load our global stylesheet with color variables
-  css: ['~/assets/css/main.css'],
+  // Tell @nuxtjs/tailwindcss to use our custom CSS file (with color variables + @tailwind directives)
+  // and to find our tailwind.config.js at the project root
+  tailwindcss: {
+    cssPath: '~/assets/css/main.css',
+    configPath: 'tailwind.config.js',
+  },
 
   // runtimeConfig: makes environment variables available in the app.
   // Variables under 'public' are safe to expose to the browser.
