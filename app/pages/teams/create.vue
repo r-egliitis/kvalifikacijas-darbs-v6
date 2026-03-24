@@ -160,11 +160,25 @@ async function handleCreate() {
     return
   }
 
+  // Prevent creating a second team if the user already belongs to one
+  if (authStore.profile?.current_team) {
+    errorMessage.value = 'Jūs jau piederat komandai. Vispirms atstājiet esošo komandu.'
+    return
+  }
+
   saving.value = true
   errorMessage.value = ''
 
   try {
     let pictureUrl = null
+
+    // ── Step 0: Ensure the user's profile row exists ─────────────────────
+    // This is needed for users who registered before RLS policies were set up
+    // and never had a profile row created. Without this, the team_members
+    // foreign key (profile_id → profiles) would fail.
+    await supabase
+      .from('profiles')
+      .upsert({ profile_id: authStore.user.id }, { onConflict: 'profile_id', ignoreDuplicates: true })
 
     // ── Step 1: Upload team logo if provided ────────────────────────────
     if (selectedLogo.value) {
@@ -204,7 +218,11 @@ async function handleCreate() {
         role:       'captain',
       })
 
-    if (memberError) throw new Error('Komanda izveidota, bet neizdevās pievienot kā kapteinim.')
+    if (memberError) {
+      // Rollback: delete the team we just created so it doesn't become an orphaned empty team
+      await supabase.from('teams').delete().eq('team_id', newTeam.team_id)
+      throw new Error('Neizdevās pievienot kā kapteinim. Mēģiniet vēlreiz.')
+    }
 
     // ── Step 4: Update the user's current_team in their profile ─────────
     await supabase
