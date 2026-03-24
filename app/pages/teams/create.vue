@@ -122,10 +122,11 @@
 
 <script setup>
 import { useAuthStore } from '~/stores/auth'
-import { supabase } from '~/utils/supabase'
 
 // Require login
 definePageMeta({ middleware: 'auth' })
+
+const supabase = useSupabase()
 
 const authStore = useAuthStore()
 const router = useRouter()

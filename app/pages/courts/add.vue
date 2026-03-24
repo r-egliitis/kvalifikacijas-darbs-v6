@@ -143,10 +143,11 @@
 
 <script setup>
 import { useAuthStore } from '~/stores/auth'
-import { supabase } from '~/utils/supabase'
 
 // Require login (admin check is done in the template)
 definePageMeta({ middleware: 'auth' })
+
+const supabase = useSupabase()
 
 const authStore = useAuthStore()
 

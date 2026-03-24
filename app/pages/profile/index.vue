@@ -111,10 +111,12 @@
 
 <script setup>
 import { useAuthStore } from '~/stores/auth'
-import { supabase } from '~/utils/supabase'
 
 // This page requires the user to be logged in
 definePageMeta({ middleware: 'auth' })
+
+// useSupabase() is auto-imported — returns the Supabase client from the plugin
+const supabase = useSupabase()
 
 const authStore = useAuthStore()
 

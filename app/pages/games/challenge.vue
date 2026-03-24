@@ -146,9 +146,10 @@
 
 <script setup>
 import { useAuthStore } from '~/stores/auth'
-import { supabase } from '~/utils/supabase'
 
 definePageMeta({ middleware: 'auth' })
+
+const supabase = useSupabase()
 
 const authStore = useAuthStore()
 

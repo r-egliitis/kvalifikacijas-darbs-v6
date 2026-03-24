@@ -161,7 +161,7 @@
 </template>
 
 <script setup>
-import { supabase } from '~/utils/supabase'
+const supabase = useSupabase()
 
 // Get the team ID from the URL (the [id] part of the route)
 const route = useRoute()

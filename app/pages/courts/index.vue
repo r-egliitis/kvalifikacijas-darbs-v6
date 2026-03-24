@@ -78,7 +78,8 @@
 
 <script setup>
 import { useAuthStore } from '~/stores/auth'
-import { supabase } from '~/utils/supabase'
+
+const supabase = useSupabase()
 
 const authStore = useAuthStore()
 
