@@ -1,0 +1,42 @@
+/*
+  main.css
+  Global stylesheet for the Basketball Management System.
+
+  This file defines a color system using CSS custom properties (variables).
+  The same variable names are used in both light and dark mode — only the VALUES change.
+  Tailwind is wired to use these variables (see tailwind.config.js).
+*/
+
+/* ─── Tailwind base layers ─────────────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Light mode color variables (default) ─────────────────────────────────── */
+:root {
+  --color-primary:    #1D4ED8;  /* Blue — main buttons and interactive elements */
+  --color-secondary:  #6B7280;  /* Gray — secondary text, borders, hints */
+  --color-accent:     #F59E0B;  /* Amber — highlights, badges, emphasis */
+  --color-background: #F9FAFB;  /* Near-white — main page background */
+  --color-surface:    #FFFFFF;  /* White — cards, modals, dropdowns */
+  --color-text:       #111827;  /* Very dark gray — main body text */
+}
+
+/* ─── Dark mode color variables (activated when <html> has class="dark") ───── */
+.dark {
+  --color-primary:    #3B82F6;  /* Lighter blue — still readable on dark backgrounds */
+  --color-secondary:  #9CA3AF;  /* Medium gray — subtle text on dark */
+  --color-accent:     #FBBF24;  /* Bright amber — stands out on dark */
+  --color-background: #111827;  /* Very dark — page background */
+  --color-surface:    #1F2937;  /* Dark gray — card/modal surfaces */
+  --color-text:       #F9FAFB;  /* Near-white — main text on dark background */
+}
+
+/* ─── Global base styles ────────────────────────────────────────────────────── */
+body {
+  /* Apply background and text colors from our variable system */
+  background-color: var(--color-background);
+  color: var(--color-text);
+  /* Smooth transition when switching between light and dark modes */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
