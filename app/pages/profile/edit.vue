@@ -219,18 +219,22 @@ async function handleSave() {
       pictureUrl = urlData.publicUrl
     }
 
-    // ── Step 2: Update the profile row in the database ──────────────────
+    // ── Step 2: Save the profile row in the database ────────────────────
+    // We use upsert() instead of update() because:
+    // - update() silently does nothing (no error) if the row doesn't exist
+    // - upsert() creates the row if missing, or updates it if it exists
+    // profile_id must be included in the payload so Supabase knows which row to match.
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({
-        name:     form.name     || null,
-        surname:  form.surname  || null,
-        nickname: form.nickname || null,
-        birthday: form.birthday || null,
-        number:   form.number   !== '' ? form.number : null,
-        picture:  pictureUrl    || null,
-      })
-      .eq('profile_id', authStore.user.id)
+      .upsert({
+        profile_id: authStore.user.id,
+        name:       form.name     || null,
+        surname:    form.surname  || null,
+        nickname:   form.nickname || null,
+        birthday:   form.birthday || null,
+        number:     form.number   !== '' ? form.number : null,
+        picture:    pictureUrl    || null,
+      }, { onConflict: 'profile_id' })
 
     if (updateError) throw new Error('Neizdevās saglabāt profilu.')
 
