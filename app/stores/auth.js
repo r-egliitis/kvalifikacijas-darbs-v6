@@ -34,11 +34,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchProfile() {
     if (!user.value) return
 
+    // .maybeSingle() returns null (not an error) when no row is found.
+    // .single() would throw a 406 error if the profile row doesn't exist yet.
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('profile_id', user.value.id)
-      .single()
+      .maybeSingle()
 
     if (!error && data) {
       profile.value = data
@@ -85,10 +87,12 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data.user
 
     if (data.user) {
+      // Insert a blank profile row for this new user.
+      // onConflict: 'profile_id' means: if a row already exists (e.g. from a database trigger),
+      // do nothing — don't overwrite it. This makes the insert safe to call always.
       await supabase
         .from('profiles')
-        .upsert({ profile_id: data.user.id })
-        .eq('profile_id', data.user.id)
+        .upsert({ profile_id: data.user.id }, { onConflict: 'profile_id', ignoreDuplicates: true })
 
       await fetchProfile()
     }
