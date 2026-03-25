@@ -9,6 +9,14 @@
     <!-- Page title -->
     <h1 class="text-2xl font-bold mb-6">Mans profils</h1>
 
+    <!-- Success banner — shown when redirected from /profile/edit?saved=true -->
+    <div
+      v-if="showSavedMessage"
+      class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-4 py-3 text-sm mb-6 flex items-center gap-2"
+    >
+      ✅ Profils saglabāts veiksmīgi!
+    </div>
+
     <!-- Loading state while profile data is being fetched -->
     <div v-if="loading" class="text-center py-16 text-secondary">
       <div class="text-4xl mb-3">⏳</div>
@@ -115,10 +123,13 @@ import { useAuthStore } from '~/stores/auth'
 // This page requires the user to be logged in
 definePageMeta({ middleware: 'auth' })
 
-// useSupabase() is auto-imported — returns the Supabase client from the plugin
 const supabase = useSupabase()
-
 const authStore = useAuthStore()
+const route = useRoute()
+
+// showSavedMessage: true when redirected from /profile/edit after a successful save.
+// The edit page appends ?saved=true to the URL on success.
+const showSavedMessage = computed(() => route.query.saved === 'true')
 
 // Loading state for the team name fetch
 const loading = ref(true)

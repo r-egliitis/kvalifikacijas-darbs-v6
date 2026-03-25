@@ -9,11 +9,6 @@
 
     <h1 class="text-2xl font-bold mb-6">Rediģēt profilu</h1>
 
-    <!-- Success message -->
-    <div v-if="savedOk" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-4 py-3 text-sm mb-6">
-      ✅ Profils saglabāts veiksmīgi!
-    </div>
-
     <!-- Error message -->
     <div v-if="errorMessage" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl px-4 py-3 text-sm mb-6">
       {{ errorMessage }}
@@ -148,10 +143,10 @@ definePageMeta({ middleware: 'auth' })
 const supabase = useSupabase()
 
 const authStore = useAuthStore()
+const router = useRouter()
 
 // UI state
 const saving = ref(false)
-const savedOk = ref(false)
 const errorMessage = ref('')
 
 // The selected photo file (before upload)
@@ -241,10 +236,9 @@ async function handleSave() {
     // ── Step 3: Refresh the profile in the auth store ───────────────────
     await authStore.fetchProfile()
 
-    savedOk.value = true
-
-    // Scroll to top so the success message is visible
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Redirect to the profile page with a ?saved=true query param
+    // The profile page reads this param and shows a success banner
+    router.push('/profile?saved=true')
 
   } catch (error) {
     errorMessage.value = error.message || 'Kļūda. Mēģiniet vēlreiz.'
