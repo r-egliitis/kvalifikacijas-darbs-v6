@@ -1,10 +1,10 @@
 <template>
   <!--
     pages/teams/[id].vue
-    The team profile page — shows full details about one team:
-    name, city, age group, bio, list of players (with roles), and game history.
-    [id] is a dynamic route — the team_id comes from the URL, e.g. /teams/T000001
-    This page is public (no login required).
+    Team profile page. Public view: team details, player list, game history.
+    Team members see a 3-dot (⋮) menu next to each player row.
+    Captains additionally see options to remove players and assign the captain role,
+    plus a button to invite new players by their visual_id.
   -->
   <div class="max-w-4xl mx-auto px-4 py-10">
 
@@ -29,7 +29,7 @@
       <!-- ── Team Header ────────────────────────────────────────────────── -->
       <div class="bg-surface rounded-2xl shadow-sm border border-secondary/10 overflow-hidden">
 
-        <!-- Banner -->
+        <!-- Banner / logo area -->
         <div class="h-28 bg-gradient-to-br from-primary/15 to-accent/10 flex items-center justify-center">
           <img
             v-if="team.picture"
@@ -43,7 +43,7 @@
         <div class="p-6">
           <h1 class="text-2xl font-bold">{{ team.name }}</h1>
 
-          <!-- Badges: city, age group -->
+          <!-- City and age group badges -->
           <div class="flex flex-wrap gap-2 mt-2">
             <span v-if="team.city" class="text-sm bg-secondary/10 text-secondary px-3 py-1 rounded-full">
               📍 {{ team.city }}
@@ -53,7 +53,7 @@
             </span>
           </div>
 
-          <!-- Bio / description -->
+          <!-- Bio -->
           <p v-if="team.bio" class="text-secondary text-sm mt-4 leading-relaxed">
             {{ team.bio }}
           </p>
@@ -64,12 +64,10 @@
       <div class="bg-surface rounded-2xl shadow-sm border border-secondary/10 p-6">
         <h2 class="text-lg font-bold mb-4">Spēlētāji ({{ members.length }})</h2>
 
-        <!-- Empty state -->
         <p v-if="members.length === 0" class="text-secondary text-sm">
           Šajā komandā vēl nav spēlētāju.
         </p>
 
-        <!-- Player rows -->
         <div v-else class="divide-y divide-secondary/10">
           <div
             v-for="member in members"
@@ -87,7 +85,7 @@
               🙋
             </div>
 
-            <!-- Name and role -->
+            <!-- Name, nickname, captain badge -->
             <div class="flex-1 min-w-0">
               <p class="font-medium truncate">
                 {{ member.profile?.name }} {{ member.profile?.surname }}
@@ -95,7 +93,6 @@
                   „{{ member.profile.nickname }}"
                 </span>
               </p>
-              <!-- Show Kapteinis badge if role is captain -->
               <span
                 v-if="member.role === 'captain'"
                 class="text-xs bg-accent/15 text-accent font-semibold px-2 py-0.5 rounded-full"
@@ -105,10 +102,75 @@
             </div>
 
             <!-- Jersey number -->
-            <span v-if="member.profile?.number !== null && member.profile?.number !== undefined" class="text-secondary text-sm font-mono">
+            <span
+              v-if="member.profile?.number !== null && member.profile?.number !== undefined"
+              class="text-secondary text-sm font-mono"
+            >
               #{{ member.profile.number }}
             </span>
+
+            <!-- ── 3-dot menu ─────────────────────────────────────────── -->
+            <!--
+              Visible to:
+              - Captains: see ⋮ on every row (manage all players)
+              - Non-captain members: see ⋮ only on their own row (to leave team)
+            -->
+            <div
+              v-if="isMember && (isCaptain || member.profile?.profile_id === authStore.user?.id)"
+              class="relative flex-shrink-0"
+            >
+              <button
+                @click.stop="toggleMenu(member.team_member_id)"
+                class="p-1.5 rounded-lg hover:bg-secondary/10 transition text-secondary text-xl leading-none"
+                title="Darbības"
+              >
+                ⋮
+              </button>
+
+              <!-- Dropdown menu -->
+              <div
+                v-if="openMenuId === member.team_member_id"
+                class="absolute right-0 top-full mt-1 w-52 bg-surface border border-secondary/10 rounded-xl shadow-lg z-20 overflow-hidden"
+              >
+                <!-- Captain options for OTHER players' rows -->
+                <template v-if="isCaptain && member.profile?.profile_id !== authStore.user?.id">
+                  <button
+                    @click="confirmAssignCaptain(member)"
+                    class="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary/5 transition"
+                  >
+                    Iecelt par kapteiņi
+                  </button>
+                  <button
+                    @click="confirmRemovePlayer(member)"
+                    class="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary/5 text-red-500 transition"
+                  >
+                    Noņemt no komandas
+                  </button>
+                </template>
+
+                <!-- "Leave team" — shown on the viewer's own row -->
+                <button
+                  v-if="member.profile?.profile_id === authStore.user?.id"
+                  @click="handleLeaveTeam"
+                  class="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary/5 text-red-500 transition"
+                >
+                  Pamest komandu
+                </button>
+              </div>
+            </div>
+            <!-- ── End 3-dot menu ─────────────────────────────────────── -->
+
           </div>
+        </div>
+
+        <!-- Add player button — captain only, shown below the player list -->
+        <div v-if="isCaptain" class="mt-4 pt-4 border-t border-secondary/10">
+          <button
+            @click="addPlayerModal.show = true"
+            class="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            + Pievienot spēlētāju
+          </button>
         </div>
       </div>
 
@@ -116,19 +178,17 @@
       <div class="bg-surface rounded-2xl shadow-sm border border-secondary/10 p-6">
         <h2 class="text-lg font-bold mb-4">Spēļu vēsture</h2>
 
-        <!-- Empty state -->
         <p v-if="games.length === 0" class="text-secondary text-sm">
           Šī komanda vēl nav spēlējusi nevienu spēli.
         </p>
 
-        <!-- Game rows -->
         <div v-else class="divide-y divide-secondary/10">
           <div
             v-for="game in games"
             :key="game.game_id"
             class="py-3 flex items-center gap-3"
           >
-            <!-- Win/Loss indicator -->
+            <!-- Win / Loss badge -->
             <span
               class="text-xs font-bold px-2 py-1 rounded-full flex-shrink-0"
               :class="game.winner === team.team_id
@@ -138,17 +198,11 @@
               {{ game.winner === team.team_id ? 'U' : 'Z' }}
             </span>
 
-            <!-- Opponent and score -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium truncate">
-                pret {{ game.opponentName }}
-              </p>
-              <p class="text-xs text-secondary">
-                {{ formatDate(game.timestamp) }}
-              </p>
+              <p class="text-sm font-medium truncate">pret {{ game.opponentName }}</p>
+              <p class="text-xs text-secondary">{{ formatDate(game.timestamp) }}</p>
             </div>
 
-            <!-- Score -->
             <span class="font-mono font-bold text-sm flex-shrink-0">
               {{ game.score_01 }} : {{ game.score_02 }}
             </span>
@@ -157,21 +211,379 @@
       </div>
 
     </div>
+    <!-- End team content -->
+
+    <!-- Transparent full-screen backdrop — closes any open 3-dot menu when clicking elsewhere -->
+    <div v-if="openMenuId" class="fixed inset-0 z-10" @click="openMenuId = null" />
+
+    <!-- ── Confirmation / Info modal ──────────────────────────────────────── -->
+    <div
+      v-if="confirmModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="confirmModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <!-- Close (X) -->
+        <button
+          @click="confirmModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text transition text-xl leading-none"
+        >
+          ✕
+        </button>
+
+        <p class="text-sm font-medium mb-6 pr-6 leading-relaxed">{{ confirmModal.message }}</p>
+
+        <!-- Info modal: just a close button (no destructive action) -->
+        <div v-if="confirmModal.isInfo" class="flex justify-center">
+          <button
+            @click="confirmModal.show = false"
+            class="px-8 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition"
+          >
+            Labi
+          </button>
+        </div>
+
+        <!-- Confirmation modal: Jā / Nē -->
+        <div v-else class="flex gap-3">
+          <button
+            @click="executeConfirm"
+            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl transition"
+          >
+            Jā
+          </button>
+          <button
+            @click="confirmModal.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+          >
+            Nē
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Add Player modal (captain only) ───────────────────────────────── -->
+    <div
+      v-if="addPlayerModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="closeAddPlayerModal"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 relative">
+        <!-- Close -->
+        <button
+          @click="closeAddPlayerModal"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text transition text-xl leading-none"
+        >
+          ✕
+        </button>
+
+        <h3 class="font-bold text-lg mb-4">Pievienot spēlētāju</h3>
+
+        <!-- Visual ID search input -->
+        <div class="flex gap-2 mb-4">
+          <input
+            v-model="addPlayerModal.visualId"
+            type="text"
+            placeholder="Vizuālais ID (piem. PV00001)"
+            class="flex-1 px-3 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            @keyup.enter="searchPlayer"
+          />
+          <button
+            @click="searchPlayer"
+            :disabled="addPlayerModal.searching || !addPlayerModal.visualId.trim()"
+            class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition"
+          >
+            Meklēt
+          </button>
+        </div>
+
+        <!-- Not found -->
+        <p v-if="addPlayerModal.notFound" class="text-secondary text-sm mb-4">
+          Spēlētājs ar šādu ID nav atrasts.
+        </p>
+
+        <!-- Found player card -->
+        <div
+          v-if="addPlayerModal.foundPlayer"
+          class="bg-secondary/5 rounded-xl p-3 flex items-center gap-3 mb-4"
+        >
+          <img
+            v-if="addPlayerModal.foundPlayer.picture"
+            :src="addPlayerModal.foundPlayer.picture"
+            class="w-10 h-10 rounded-full object-cover flex-shrink-0"
+          />
+          <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
+            🙋
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-sm truncate">
+              {{ addPlayerModal.foundPlayer.name }} {{ addPlayerModal.foundPlayer.surname }}
+            </p>
+            <p v-if="addPlayerModal.foundPlayer.nickname" class="text-xs text-secondary truncate">
+              „{{ addPlayerModal.foundPlayer.nickname }}"
+            </p>
+          </div>
+
+          <button
+            @click="invitePlayer(addPlayerModal.foundPlayer)"
+            :disabled="addPlayerModal.inviting || addPlayerModal.alreadyInvited"
+            class="px-3 py-1.5 text-xs bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50 transition flex-shrink-0"
+          >
+            {{ addPlayerModal.alreadyInvited ? 'Uzaicināts ✓' : 'Uzaicināt' }}
+          </button>
+        </div>
+
+        <!-- Success / error messages -->
+        <p v-if="addPlayerModal.successMessage" class="text-sm text-green-600 dark:text-green-400">
+          {{ addPlayerModal.successMessage }}
+        </p>
+        <p v-if="addPlayerModal.errorMessage" class="text-sm text-red-500">
+          {{ addPlayerModal.errorMessage }}
+        </p>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-const supabase = useSupabase()
+import { useAuthStore } from '~/stores/auth'
 
-// Get the team ID from the URL (the [id] part of the route)
-const route = useRoute()
+const supabase  = useSupabase()
+const authStore = useAuthStore()
+const router    = useRouter()
+
+// teamId comes from the URL: /teams/[id]
+const route  = useRoute()
 const teamId = route.params.id
 
 // ─── State ────────────────────────────────────────────────────────────────
+
 const loading = ref(true)
-const team = ref(null)
-const members = ref([])   // list of team_members with joined profile data
-const games = ref([])     // list of completed games involving this team
+const team    = ref(null)
+const members = ref([])   // team_members rows with joined profile data
+const games   = ref([])   // completed games involving this team
+
+// ─── Member role detection ─────────────────────────────────────────────────
+
+// myMembership: the team_member row for the logged-in viewer (null if not a member)
+const myMembership = computed(() =>
+  members.value.find(m => m.profile?.profile_id === authStore.user?.id) || null
+)
+
+// isMember: viewer is a member of this team
+const isMember = computed(() => !!myMembership.value)
+
+// isCaptain: viewer is the captain of this team
+const isCaptain = computed(() => myMembership.value?.role === 'captain')
+
+// ─── 3-dot menus ─────────────────────────────────────────────────────────
+
+// openMenuId: which player row's menu is currently open (null = all closed)
+const openMenuId = ref(null)
+
+function toggleMenu(teamMemberId) {
+  openMenuId.value = openMenuId.value === teamMemberId ? null : teamMemberId
+}
+
+// ─── Confirmation / Info modal ────────────────────────────────────────────
+
+const confirmModal = reactive({
+  show:      false,
+  message:   '',
+  onConfirm: null,
+  isInfo:    false,  // when true: shows a single "Labi" button instead of Jā/Nē
+})
+
+function openConfirm(message, onConfirm, isInfo = false) {
+  confirmModal.message   = message
+  confirmModal.onConfirm = onConfirm
+  confirmModal.isInfo    = isInfo
+  confirmModal.show      = true
+  openMenuId.value       = null  // close any open 3-dot menu
+}
+
+async function executeConfirm() {
+  if (confirmModal.onConfirm) await confirmModal.onConfirm()
+  confirmModal.show = false
+}
+
+// ─── Team actions ─────────────────────────────────────────────────────────
+
+// handleLeaveTeam: decides which leave path to take based on role and member count
+function handleLeaveTeam() {
+  openMenuId.value = null
+
+  // Captain still has the captain role and is NOT the only member — must transfer first
+  if (isCaptain.value && members.value.length > 1) {
+    openConfirm(
+      'Lai atstātu komandu, vispirms ieceli jaunu kapteiņi.',
+      null,
+      true  // isInfo — shows just "Labi" button
+    )
+    return
+  }
+
+  if (members.value.length === 1) {
+    // Sole member: leaving deletes the entire team
+    openConfirm(
+      'Jūs esat vienīgais komandas dalībnieks. Atstājot komandu, tā tiks dzēsta. Turpināt?',
+      leaveAndDeleteTeam
+    )
+  } else {
+    // Regular leave (non-captain player)
+    openConfirm('Vai tiešām vēlaties atstāt komandu?', leaveTeam)
+  }
+}
+
+// leaveTeam: removes self from team_members and clears current_team on profile
+async function leaveTeam() {
+  const membership = myMembership.value
+  if (!membership) return
+
+  await supabase.from('team_members').delete().eq('team_member_id', membership.team_member_id)
+  await supabase.from('profiles').update({ current_team: null }).eq('profile_id', authStore.user.id)
+  await authStore.fetchProfile()
+  router.push('/teams')
+}
+
+// leaveAndDeleteTeam: sole member leaves — also deletes the team row
+async function leaveAndDeleteTeam() {
+  const membership = myMembership.value
+  if (!membership) return
+
+  await supabase.from('team_members').delete().eq('team_member_id', membership.team_member_id)
+  await supabase.from('profiles').update({ current_team: null }).eq('profile_id', authStore.user.id)
+  // Cascade on team_invitations and team_members handles cleanup
+  await supabase.from('teams').delete().eq('team_id', teamId)
+  await authStore.fetchProfile()
+  router.push('/teams')
+}
+
+// confirmRemovePlayer: captain removes another player from the team
+function confirmRemovePlayer(member) {
+  const name = [member.profile?.name, member.profile?.surname].filter(Boolean).join(' ')
+  openConfirm(
+    `Vai tiešām vēlaties noņemt ${name} no komandas?`,
+    () => removePlayer(member)
+  )
+}
+
+async function removePlayer(member) {
+  await supabase.from('team_members').delete().eq('team_member_id', member.team_member_id)
+  await supabase
+    .from('profiles')
+    .update({ current_team: null })
+    .eq('profile_id', member.profile.profile_id)
+  await fetchMembers()
+}
+
+// confirmAssignCaptain: captain hands their role to another player
+function confirmAssignCaptain(member) {
+  const name = [member.profile?.name, member.profile?.surname].filter(Boolean).join(' ')
+  openConfirm(
+    `Vai tiešām vēlaties iecelt ${name} par kapteiņi? Jūs kļūsiet par parastu spēlētāju.`,
+    () => assignCaptain(member)
+  )
+}
+
+async function assignCaptain(member) {
+  const myMem = myMembership.value
+  if (!myMem) return
+
+  // Promote target to captain, demote self to player
+  await supabase.from('team_members').update({ role: 'captain' }).eq('team_member_id', member.team_member_id)
+  await supabase.from('team_members').update({ role: 'player' }).eq('team_member_id', myMem.team_member_id)
+
+  await fetchMembers()
+}
+
+// ─── Add Player modal ─────────────────────────────────────────────────────
+
+const addPlayerModal = reactive({
+  show:           false,
+  visualId:       '',
+  searching:      false,
+  foundPlayer:    null,
+  notFound:       false,
+  alreadyInvited: false,
+  inviting:       false,
+  successMessage: '',
+  errorMessage:   '',
+})
+
+function closeAddPlayerModal() {
+  Object.assign(addPlayerModal, {
+    show: false, visualId: '', searching: false,
+    foundPlayer: null, notFound: false, alreadyInvited: false,
+    inviting: false, successMessage: '', errorMessage: '',
+  })
+}
+
+// searchPlayer: looks up a profile row by visual_id
+async function searchPlayer() {
+  // Reset result state
+  addPlayerModal.foundPlayer    = null
+  addPlayerModal.notFound       = false
+  addPlayerModal.alreadyInvited = false
+  addPlayerModal.successMessage = ''
+  addPlayerModal.errorMessage   = ''
+
+  const id = addPlayerModal.visualId.trim().toUpperCase()
+  if (!id) return
+
+  addPlayerModal.searching = true
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('profile_id, name, surname, nickname, picture, visual_id')
+    .eq('visual_id', id)
+    .maybeSingle()
+
+  addPlayerModal.searching = false
+
+  if (!data) {
+    addPlayerModal.notFound = true
+    return
+  }
+
+  addPlayerModal.foundPlayer = data
+
+  // Check if a pending invite for this player already exists
+  const { data: existing } = await supabase
+    .from('team_invitations')
+    .select('invitation_id')
+    .eq('team_id', teamId)
+    .eq('invitee_profile_id', data.profile_id)
+    .eq('status', 'pending')
+    .maybeSingle()
+
+  addPlayerModal.alreadyInvited = !!existing
+}
+
+// invitePlayer: sends a team invitation to the found player
+async function invitePlayer(profile) {
+  addPlayerModal.inviting      = true
+  addPlayerModal.errorMessage  = ''
+
+  const { error } = await supabase
+    .from('team_invitations')
+    .insert({
+      team_id:               teamId,
+      invitee_profile_id:    profile.profile_id,
+      invited_by_profile_id: authStore.user.id,
+    })
+
+  addPlayerModal.inviting = false
+
+  if (error) {
+    addPlayerModal.errorMessage = 'Neizdevās nosūtīt uzaicinājumu.'
+    return
+  }
+
+  addPlayerModal.alreadyInvited  = true
+  addPlayerModal.successMessage  = 'Uzaicinājums nosūtīts!'
+}
 
 // ─── Data Fetching ────────────────────────────────────────────────────────
 
@@ -181,7 +593,6 @@ onMounted(async () => {
   loading.value = false
 })
 
-// fetchTeam: loads the team row from the database
 async function fetchTeam() {
   const { data, error } = await supabase
     .from('teams')
@@ -192,9 +603,7 @@ async function fetchTeam() {
   if (!error) team.value = data
 }
 
-// fetchMembers: loads all members of this team, including their profile data
 async function fetchMembers() {
-  // Join team_members with profiles to get player details in one query
   const { data, error } = await supabase
     .from('team_members')
     .select(`
@@ -216,9 +625,7 @@ async function fetchMembers() {
   if (!error) members.value = data || []
 }
 
-// fetchGames: loads all completed games where this team participated
 async function fetchGames() {
-  // Fetch games where this team is either team_01 or team_02
   const { data, error } = await supabase
     .from('games')
     .select(`
@@ -236,7 +643,6 @@ async function fetchGames() {
     .order('timestamp', { ascending: false })
 
   if (!error && data) {
-    // For each game, determine the opponent's name
     games.value = data.map(game => ({
       ...game,
       opponentName: game.team_01 === teamId ? game.t2?.name : game.t1?.name,
@@ -244,7 +650,7 @@ async function fetchGames() {
   }
 }
 
-// formatDate: converts an ISO timestamp to a human-readable Latvian date
+// formatDate: converts ISO timestamp to a readable Latvian date
 function formatDate(timestamp) {
   if (!timestamp) return ''
   return new Date(timestamp).toLocaleDateString('lv-LV', {
@@ -252,7 +658,6 @@ function formatDate(timestamp) {
   })
 }
 
-// Set the page title dynamically using the team name
 useHead({
   title: computed(() => team.value ? `${team.value.name} · Basketbols` : 'Komanda · Basketbols'),
 })
