@@ -64,6 +64,9 @@
       <div class="bg-surface rounded-2xl shadow-sm border border-secondary/10 p-6">
         <h2 class="text-lg font-bold mb-4">Spēlētāji ({{ members.length }})</h2>
 
+        <!-- Action error (shown when a captain action fails, e.g. due to missing DB policy) -->
+        <p v-if="actionError" class="text-red-500 text-sm mb-3">{{ actionError }}</p>
+
         <p v-if="members.length === 0" class="text-secondary text-sm">
           Šajā komandā vēl nav spēlētāju.
         </p>
@@ -359,10 +362,11 @@ const teamId = route.params.id
 
 // ─── State ────────────────────────────────────────────────────────────────
 
-const loading = ref(true)
-const team    = ref(null)
-const members = ref([])   // team_members rows with joined profile data
-const games   = ref([])   // completed games involving this team
+const loading     = ref(true)
+const team        = ref(null)
+const members     = ref([])   // team_members rows with joined profile data
+const games       = ref([])   // completed games involving this team
+const actionError = ref('')   // shown when a team management action fails
 
 // ─── Member role detection ─────────────────────────────────────────────────
 
@@ -470,11 +474,10 @@ function confirmRemovePlayer(member) {
 }
 
 async function removePlayer(member) {
-  await supabase.from('team_members').delete().eq('team_member_id', member.team_member_id)
-  await supabase
-    .from('profiles')
-    .update({ current_team: null })
-    .eq('profile_id', member.profile.profile_id)
+  actionError.value = ''
+  const { error } = await supabase.from('team_members').delete().eq('team_member_id', member.team_member_id)
+  if (error) { actionError.value = 'Neizdevās noņemt spēlētāju.'; return }
+  await supabase.from('profiles').update({ current_team: null }).eq('profile_id', member.profile.profile_id)
   await fetchMembers()
 }
 
@@ -490,11 +493,13 @@ function confirmAssignCaptain(member) {
 async function assignCaptain(member) {
   const myMem = myMembership.value
   if (!myMem) return
+  actionError.value = ''
 
   // Promote target to captain, demote self to player
-  await supabase.from('team_members').update({ role: 'captain' }).eq('team_member_id', member.team_member_id)
-  await supabase.from('team_members').update({ role: 'player' }).eq('team_member_id', myMem.team_member_id)
+  const { error: e1 } = await supabase.from('team_members').update({ role: 'captain' }).eq('team_member_id', member.team_member_id)
+  const { error: e2 } = await supabase.from('team_members').update({ role: 'player' }).eq('team_member_id', myMem.team_member_id)
 
+  if (e1 || e2) { actionError.value = 'Neizdevās mainīt kapteiņa lomu.'; return }
   await fetchMembers()
 }
 
