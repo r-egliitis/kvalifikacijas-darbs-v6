@@ -70,23 +70,26 @@
           <span v-else class="text-xl">🌙</span>
         </button>
 
-        <!-- Logout button (only shown when logged in) -->
-        <button
-          v-if="authStore.isLoggedIn"
-          @click="handleLogout"
-          class="text-sm font-medium px-3 py-1.5 rounded border border-secondary/30 hover:bg-secondary/10 transition-colors"
-        >
-          Izrakstīties
-        </button>
+        <!-- Auth buttons — hidden during the initial auth loading window to prevent flash -->
+        <template v-if="!authStore.loading">
+          <!-- Logout button (only shown when logged in) -->
+          <button
+            v-if="authStore.isLoggedIn"
+            @click="handleLogout"
+            class="text-sm font-medium px-3 py-1.5 rounded border border-secondary/30 hover:bg-secondary/10 transition-colors"
+          >
+            Izrakstīties
+          </button>
 
-        <!-- Login button (only shown when NOT logged in) -->
-        <NuxtLink
-          v-else
-          to="/auth/login"
-          class="text-sm font-medium px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/90 transition-colors"
-        >
-          Pieteikties
-        </NuxtLink>
+          <!-- Login button (only shown when NOT logged in) -->
+          <NuxtLink
+            v-else
+            to="/auth/login"
+            class="text-sm font-medium px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/90 transition-colors"
+          >
+            Pieteikties
+          </NuxtLink>
+        </template>
       </div>
 
     </div>

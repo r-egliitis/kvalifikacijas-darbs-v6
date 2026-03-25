@@ -107,6 +107,9 @@
 <script setup>
 import { useAuthStore } from '~/stores/auth'
 
+// guest middleware: redirect to /profile if already logged in
+definePageMeta({ middleware: 'guest' })
+
 const authStore = useAuthStore()
 const router = useRouter()
 

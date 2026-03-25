@@ -84,10 +84,8 @@
 import { useAuthStore } from '~/stores/auth'
 
 // Page metadata: no middleware needed (login page is public)
-definePageMeta({ layout: false })
-
-// Actually we DO want the layout (navbar/footer), so don't set layout: false
-// Remove the above line — it was incorrect. Let Nuxt use the default layout.
+// guest middleware: if the user is already logged in, redirect them to /profile
+definePageMeta({ middleware: 'guest' })
 
 const authStore = useAuthStore()
 const router = useRouter()
