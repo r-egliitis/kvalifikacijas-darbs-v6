@@ -44,6 +44,26 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (!error && data) {
       profile.value = data
+
+      // Self-heal stale current_team: if the profile says the user belongs to a
+      // team but they are no longer in team_members (e.g. a captain removed them),
+      // clear current_team on their own profile row so the UI reflects reality.
+      if (data.current_team) {
+        const { data: membership } = await supabase
+          .from('team_members')
+          .select('team_member_id')
+          .eq('team_id', data.current_team)
+          .eq('profile_id', user.value.id)
+          .maybeSingle()
+
+        if (!membership) {
+          await supabase
+            .from('profiles')
+            .update({ current_team: null })
+            .eq('profile_id', user.value.id)
+          profile.value = { ...data, current_team: null }
+        }
+      }
     }
   }
 
