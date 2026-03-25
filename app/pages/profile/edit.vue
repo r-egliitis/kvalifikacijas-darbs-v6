@@ -185,7 +185,6 @@ function handlePhotoSelect(event) {
 // handleSave: saves the profile to the database (and uploads photo if selected)
 async function handleSave() {
   saving.value = true
-  savedOk.value = false
   errorMessage.value = ''
 
   try {
