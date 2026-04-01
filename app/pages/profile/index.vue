@@ -288,28 +288,37 @@ async function openDeleteModal() {
   const userId  = authStore.user?.id
   const teamId  = profile.value?.current_team
 
-  // Check 1: accepted game vote on a currently accepted challenge
-  const { data: gameVote } = await supabase
+  // Check 1: block only if deleting this player would leave their team with <3 going players
+  const { data: myAcceptVotes } = await supabase
     .from('challenge_votes')
     .select('challenge_id')
     .eq('profile_id', userId)
     .eq('vote', 'accept')
-    .limit(1)
 
-  if (gameVote?.length) {
-    // Verify at least one of those challenges is still accepted (not completed/canceled)
-    const challengeIds = gameVote.map(v => v.challenge_id)
+  if (myAcceptVotes?.length) {
+    const challengeIds = myAcceptVotes.map(v => v.challenge_id)
     const { data: activeChallenges } = await supabase
       .from('game_challenges')
       .select('challenge_id')
       .in('challenge_id', challengeIds)
       .eq('status', 'accepted')
-      .limit(1)
 
-    if (activeChallenges?.length) {
-      deleteModal.state = 'blocked-game'
-      deleteModal.show  = true
-      return
+    for (const ch of activeChallenges || []) {
+      // Count teammates who accepted, excluding this user
+      const { data: othersGoing } = await supabase
+        .from('challenge_votes')
+        .select('profile_id')
+        .eq('challenge_id', ch.challenge_id)
+        .eq('team_id', teamId)
+        .eq('vote', 'accept')
+        .neq('profile_id', userId)
+
+      if ((othersGoing?.length ?? 0) < 3) {
+        // Removing this player drops team below 3 — block
+        deleteModal.state = 'blocked-game'
+        deleteModal.show  = true
+        return
+      }
     }
   }
 

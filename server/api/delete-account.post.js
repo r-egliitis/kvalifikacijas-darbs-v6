@@ -77,8 +77,9 @@ export default defineEventHandler(async (event) => {
   await admin.from('challenge_votes').delete().eq('profile_id', userId)
   await admin.from('notifications').delete().eq('profile_id', userId)
   await admin.from('team_invitations').delete().eq('invitee_profile_id', userId)
+  // lineup_players references profiles.profile_id — must be removed before profile delete
+  await admin.from('lineup_players').delete().eq('profile_id', userId)
 
-  // Update profile's current_team to null before deleting
   await admin.from('profiles').delete().eq('profile_id', userId)
 
   // ── 7. Delete the auth user (requires service role) ────────────────────
