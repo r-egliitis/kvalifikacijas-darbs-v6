@@ -186,7 +186,7 @@ async function handleAdd() {
         url:       form.url.trim()      || null,
       })
 
-    if (error) throw new Error('Neizdevās pievienot laukumu.')
+    if (error) throw new Error(error.message || 'Neizdevās pievienot laukumu.')
 
     savedOk.value = true
 
