@@ -1,228 +1,315 @@
 <template>
   <!--
     pages/games/index.vue
-    The games page — shows two tabs:
-      1. "Izaicinājumi" — pending/accepted/declined game requests
-      2. "Vēsture" — completed games with scores
-
-    Captains can accept/decline incoming challenges and submit scores for accepted games.
-    When both team captains submit matching scores, a game record is created automatically.
-    This page requires login.
+    Three tabs:
+      1. Gaidošie   — pending challenges, per-player vote (accept/deny)
+      2. Pieņemtās  — accepted challenges, captain score submission
+      3. Vēsture    — completed games
   -->
   <div class="max-w-4xl mx-auto px-4 py-10">
 
-    <h1 class="text-2xl font-bold mb-6">Spēles</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Spēles</h1>
+      <!-- New challenge button (captains only) -->
+      <NuxtLink
+        v-if="isCaptain && myTeamSize >= 3"
+        to="/games/challenge"
+        class="inline-flex items-center gap-2 bg-primary text-white font-semibold px-4 py-2 rounded-xl hover:bg-primary/90 transition text-sm"
+      >
+        ⚔️ Sūtīt izaicinājumu
+      </NuxtLink>
+    </div>
 
-    <!-- ── Tab Navigation ─────────────────────────────────────────────── -->
-    <div class="flex border-b border-secondary/20 mb-6">
+    <!-- ── Tab navigation ─────────────────────────────────────────────── -->
+    <div class="flex border-b border-secondary/20 mb-6 gap-1">
       <button
-        @click="activeTab = 'challenges'"
-        :class="activeTab === 'challenges'
+        v-for="tab in tabs"
+        :key="tab.id"
+        @click="activeTab = tab.id"
+        class="px-4 py-2.5 font-medium text-sm transition relative"
+        :class="activeTab === tab.id
           ? 'border-b-2 border-primary text-primary'
           : 'text-secondary hover:text-app-text'"
-        class="px-4 py-2.5 font-medium text-sm transition"
       >
-        Izaicinājumi
-        <!-- Badge showing count of pending challenges -->
+        {{ tab.label }}
         <span
-          v-if="pendingCount > 0"
+          v-if="tab.id === 'pending' && pendingForMe > 0"
           class="ml-1.5 bg-accent text-white text-xs font-bold px-1.5 py-0.5 rounded-full"
         >
-          {{ pendingCount }}
+          {{ pendingForMe }}
         </span>
-      </button>
-
-      <button
-        @click="activeTab = 'history'"
-        :class="activeTab === 'history'
-          ? 'border-b-2 border-primary text-primary'
-          : 'text-secondary hover:text-app-text'"
-        class="px-4 py-2.5 font-medium text-sm transition"
-      >
-        Spēļu vēsture
       </button>
     </div>
 
-    <!-- Loading state -->
+    <!-- Loading -->
     <div v-if="loading" class="text-center py-16 text-secondary">
       <div class="text-4xl mb-3">⏳</div>
       <p>Ielādē...</p>
     </div>
 
+    <!-- No team -->
+    <div v-else-if="!myTeamId" class="text-center py-16 text-secondary">
+      <div class="text-5xl mb-4">🏀</div>
+      <p class="font-medium">Nav komandas</p>
+      <p class="text-sm mt-1">
+        <NuxtLink to="/teams" class="text-primary hover:underline">Pievienojies komandai</NuxtLink>
+        , lai redzētu spēles.
+      </p>
+    </div>
+
     <template v-else>
 
-      <!-- ══════════════════════════════════════════════════════════════════
-           TAB 1: CHALLENGES (game requests)
-           ══════════════════════════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'challenges'">
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 1: GAIDOŠIE (pending challenges)
+           ══════════════════════════════════════════════════════════════ -->
+      <div v-if="activeTab === 'pending'">
 
-        <!-- New challenge button -->
-        <div class="mb-5">
-          <NuxtLink
-            to="/games/challenge"
-            class="inline-flex items-center gap-2 bg-primary text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 transition"
-          >
-            ⚔️ Sūtīt izaicinājumu
-          </NuxtLink>
-        </div>
-
-        <!-- Empty state -->
-        <div v-if="requests.length === 0" class="text-center py-12 text-secondary">
+        <div v-if="pendingChallenges.length === 0" class="text-center py-12 text-secondary">
           <div class="text-5xl mb-4">⚔️</div>
-          <p class="font-medium">Nav izaicinājumu</p>
-          <p class="text-sm mt-1">Izaicini citu komandu, lai sāktu spēli!</p>
+          <p class="font-medium">Nav gaidošo izaicinājumu</p>
         </div>
 
-        <!-- Challenge cards -->
         <div v-else class="space-y-4">
           <div
-            v-for="req in requests"
-            :key="req.game_request_id"
+            v-for="ch in pendingChallenges"
+            :key="ch.challenge_id"
             class="bg-surface rounded-2xl border border-secondary/10 shadow-sm p-5"
           >
-            <!-- Status badge + teams -->
+            <!-- Teams -->
             <div class="flex items-start justify-between gap-3 mb-3">
               <div>
                 <p class="font-bold text-base">
-                  {{ req.lineup01TeamName }}
+                  {{ ch.challengerName }}
                   <span class="text-secondary font-normal mx-2">vs</span>
-                  {{ req.lineup02TeamName }}
+                  {{ ch.challengedName }}
                 </p>
-                <p class="text-secondary text-sm mt-0.5">
-                  📍 {{ req.courtName || 'Laukums nav norādīts' }}
-                </p>
-                <p class="text-secondary text-sm">
-                  🕐 {{ req.timestamp ? formatDate(req.timestamp) : 'Laiks nav norādīts' }}
-                </p>
+                <p class="text-secondary text-sm mt-0.5">📍 {{ ch.courtName }}</p>
+                <p class="text-secondary text-sm">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+                <p v-if="ch.comment" class="text-secondary text-sm mt-1 italic">„{{ ch.comment }}"</p>
               </div>
-
-              <!-- Status badge -->
-              <span
-                class="text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0"
-                :class="{
-                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': req.status === 'pending',
-                  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400':  req.status === 'accepted',
-                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400':           req.status === 'declined',
-                }"
-              >
-                {{ statusLabel(req.status) }}
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 shrink-0">
+                Gaida balsojumu
               </span>
             </div>
 
-            <!-- Actions for INCOMING pending challenges (the other team sent it to us) -->
-            <div
-              v-if="req.status === 'pending' && req.isIncoming"
-              class="flex gap-3 mt-3"
-            >
-              <button
-                @click="acceptChallenge(req)"
-                :disabled="actionLoading === req.game_request_id"
-                class="flex-1 bg-green-600 text-white font-semibold py-2 rounded-xl hover:bg-green-700 disabled:opacity-50 transition text-sm"
-              >
-                Apstiprināt
-              </button>
-              <button
-                @click="declineChallenge(req)"
-                :disabled="actionLoading === req.game_request_id"
-                class="flex-1 border border-red-300 text-red-600 font-semibold py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition text-sm"
-              >
-                Noraidīt
-              </button>
+            <!-- Vote counts per team -->
+            <div class="flex gap-4 mb-4 text-sm">
+              <div class="flex-1 bg-secondary/5 rounded-xl px-3 py-2">
+                <p class="font-medium text-xs text-secondary mb-1">{{ ch.challengerName }}</p>
+                <p>
+                  <span class="text-green-600 font-semibold">{{ voteCount(ch, ch.challenger_team_id, 'accept') }}</span>
+                  <span class="text-secondary"> / {{ ch.challengerSize }} piekrituši</span>
+                </p>
+                <p class="text-xs text-secondary mt-0.5">
+                  {{ voteCount(ch, ch.challenger_team_id, 'deny') }} noraidīja
+                </p>
+              </div>
+              <div class="flex-1 bg-secondary/5 rounded-xl px-3 py-2">
+                <p class="font-medium text-xs text-secondary mb-1">{{ ch.challengedName }}</p>
+                <p>
+                  <span class="text-green-600 font-semibold">{{ voteCount(ch, ch.challenged_team_id, 'accept') }}</span>
+                  <span class="text-secondary"> / {{ ch.challengedSize }} piekrituši</span>
+                </p>
+                <p class="text-xs text-secondary mt-0.5">
+                  {{ voteCount(ch, ch.challenged_team_id, 'deny') }} noraidīja
+                </p>
+              </div>
             </div>
 
-            <!-- Score submission (for accepted challenges where user is a captain) -->
-            <div v-if="req.status === 'accepted' && req.isCaptain" class="mt-4 border-t border-secondary/10 pt-4">
+            <!-- User's vote status -->
+            <div v-if="myVote(ch)" class="text-sm mb-3">
+              <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                :class="myVote(ch) === 'accept'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'"
+              >
+                {{ myVote(ch) === 'accept' ? '✓ Jūs piekritāt' : '✕ Jūs noraidījāt' }}
+              </span>
+            </div>
 
-              <!-- Check if this captain has already submitted -->
-              <div v-if="alreadySubmitted(req)" class="text-sm text-secondary">
-                ✅ Jūs jau esat ievadījis rezultātu. Gaida otras komandas apstiprinājumu.
+            <!-- Vote buttons (if user hasn't voted yet) -->
+            <div v-if="!myVote(ch)" class="flex gap-3">
+              <button
+                @click="castVote(ch, 'accept')"
+                :disabled="voteLoading === ch.challenge_id"
+                class="flex-1 bg-green-600 text-white font-semibold py-2 rounded-xl hover:bg-green-700 disabled:opacity-50 transition text-sm"
+              >
+                <span v-if="voteLoading === ch.challenge_id">...</span>
+                <span v-else>✓ Piekrist</span>
+              </button>
+              <button
+                @click="castVote(ch, 'deny')"
+                :disabled="voteLoading === ch.challenge_id"
+                class="flex-1 border border-red-300 text-red-600 font-semibold py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition text-sm"
+              >
+                <span v-if="voteLoading === ch.challenge_id">...</span>
+                <span v-else>✕ Noraidīt</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 2: PIEŅEMTĀS (accepted challenges)
+           ══════════════════════════════════════════════════════════════ -->
+      <div v-if="activeTab === 'accepted'">
+
+        <div v-if="acceptedChallenges.length === 0" class="text-center py-12 text-secondary">
+          <div class="text-5xl mb-4">🏆</div>
+          <p class="font-medium">Nav pieņemtu izaicinājumu</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="ch in acceptedChallenges"
+            :key="ch.challenge_id"
+            class="bg-surface rounded-2xl border border-secondary/10 shadow-sm p-5"
+          >
+            <!-- Teams + info -->
+            <div class="mb-4">
+              <p class="font-bold text-base">
+                {{ ch.challengerName }}
+                <span class="text-secondary font-normal mx-2">vs</span>
+                {{ ch.challengedName }}
+              </p>
+              <p class="text-secondary text-sm mt-0.5">📍 {{ ch.courtName }}</p>
+              <p class="text-secondary text-sm">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+              <p v-if="ch.comment" class="text-secondary text-sm mt-1 italic">„{{ ch.comment }}"</p>
+            </div>
+
+            <!-- Score section (captains only) -->
+            <div v-if="isCaptain" class="border-t border-secondary/10 pt-4">
+
+              <!-- Too early to score -->
+              <div v-if="!canSubmitScore(ch)" class="text-sm text-secondary">
+                ⏳ Rezultātu var ievadīt pēc spēles laika ({{ formatDate(ch.scheduled_at) }}).
               </div>
 
-              <div v-else>
-                <p class="text-sm font-medium mb-3">Ievadi rezultātu:</p>
-                <div class="flex items-center gap-3">
-                  <!-- Team 1 score -->
-                  <div class="flex-1">
-                    <label class="block text-xs text-secondary mb-1">{{ req.lineup01TeamName }}</label>
-                    <input
-                      v-model.number="scoreInputs[req.game_request_id + '_01']"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    />
-                  </div>
+              <template v-else>
 
-                  <span class="text-secondary font-bold text-xl pt-4">:</span>
-
-                  <!-- Team 2 score -->
-                  <div class="flex-1">
-                    <label class="block text-xs text-secondary mb-1">{{ req.lineup02TeamName }}</label>
-                    <input
-                      v-model.number="scoreInputs[req.game_request_id + '_02']"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    />
-                  </div>
+                <!-- Mismatch warning -->
+                <div
+                  v-if="mismatchIds.includes(ch.challenge_id)"
+                  class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 rounded-xl px-3 py-2 text-sm mb-3"
+                >
+                  ⚠️ Rezultāti nesakrita. Lūdzu ievadiet rezultātu no jauna.
                 </div>
 
-                <button
-                  @click="submitScore(req)"
-                  :disabled="scoreLoading === req.game_request_id"
-                  class="mt-3 w-full bg-primary text-white font-semibold py-2 rounded-xl hover:bg-primary/90 disabled:opacity-50 transition text-sm"
+                <!-- Other captain already submitted (and I haven't yet) -->
+                <div
+                  v-if="otherCaptainSubmitted(ch) && !myCaptainSubmitted(ch)"
+                  class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 rounded-xl px-3 py-2 text-sm mb-3"
                 >
-                  <span v-if="scoreLoading === req.game_request_id">Saglabā...</span>
-                  <span v-else>Iesniegt rezultātu</span>
-                </button>
-              </div>
+                  ℹ️ Otra komanda iesniedza:
+                  <span class="font-mono font-bold">
+                    {{ otherScore(ch).t1 }} : {{ otherScore(ch).t2 }}
+                  </span>
+                  — lūdzu apstipriniet vai ievadiet pareizo rezultātu.
+                </div>
+
+                <!-- I already submitted, waiting for other captain -->
+                <div
+                  v-if="myCaptainSubmitted(ch) && !otherCaptainSubmitted(ch)"
+                  class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-3 py-2 text-sm"
+                >
+                  ✅ Jūs iesniedzāt
+                  <span class="font-mono font-bold">{{ myScore(ch).t1 }} : {{ myScore(ch).t2 }}</span>
+                  — gaida otras komandas apstiprinājumu.
+                </div>
+
+                <!-- Score input form (if I haven't submitted or mismatch) -->
+                <div v-if="!myCaptainSubmitted(ch) || mismatchIds.includes(ch.challenge_id)">
+                  <p class="text-sm font-medium mb-3">
+                    {{ ch.challengerName }} : {{ ch.challengedName }}
+                  </p>
+                  <div class="flex items-center gap-3 mb-3">
+                    <div class="flex-1">
+                      <label class="block text-xs text-secondary mb-1">{{ ch.challengerName }}</label>
+                      <input
+                        v-model.number="getScoreInput(ch.challenge_id).t1"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-xl focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                    <span class="text-secondary font-bold text-xl pt-4">:</span>
+                    <div class="flex-1">
+                      <label class="block text-xs text-secondary mb-1">{{ ch.challengedName }}</label>
+                      <input
+                        v-model.number="getScoreInput(ch.challenge_id).t2"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-xl focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    @click="submitScore(ch)"
+                    :disabled="scoreLoading === ch.challenge_id"
+                    class="w-full bg-primary text-white font-semibold py-2 rounded-xl hover:bg-primary/90 disabled:opacity-50 transition text-sm"
+                  >
+                    <span v-if="scoreLoading === ch.challenge_id">Saglabā...</span>
+                    <span v-else>Iesniegt rezultātu</span>
+                  </button>
+                </div>
+
+              </template>
+
+            </div>
+
+            <!-- Non-captain: just show "game confirmed" message -->
+            <div v-else class="border-t border-secondary/10 pt-3 text-sm text-secondary">
+              ✅ Izaicinājums apstiprināts — gaida spēles laiku
             </div>
 
           </div>
         </div>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════════════════
-           TAB 2: GAME HISTORY
-           ══════════════════════════════════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 3: VĒSTURE (completed games)
+           ══════════════════════════════════════════════════════════════ -->
       <div v-if="activeTab === 'history'">
 
-        <!-- Empty state -->
-        <div v-if="games.length === 0" class="text-center py-12 text-secondary">
+        <div v-if="completedChallenges.length === 0" class="text-center py-12 text-secondary">
           <div class="text-5xl mb-4">📊</div>
           <p class="font-medium">Spēļu vēsture ir tukša</p>
-          <p class="text-sm mt-1">Pēc spēles pabeigšanas rezultāti parādīsies šeit.</p>
+          <p class="text-sm mt-1">Pabeigtās spēles parādīsies šeit.</p>
         </div>
 
-        <!-- Game history list -->
         <div v-else class="space-y-3">
           <div
-            v-for="game in games"
-            :key="game.game_id"
+            v-for="ch in completedChallenges"
+            :key="ch.challenge_id"
             class="bg-surface rounded-2xl border border-secondary/10 shadow-sm p-4 flex items-center gap-4"
           >
-            <!-- Win/Loss badge for MY team -->
+            <!-- Win / Loss badge -->
             <span
               class="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
-              :class="game.winner === myTeamId
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'"
+              :class="ch.final_score_team1 != null
+                ? (ch.challenger_team_id === myTeamId
+                    ? (ch.final_score_team1 > ch.final_score_team2 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400')
+                    : (ch.final_score_team2 > ch.final_score_team1 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'))
+                : 'bg-secondary/10 text-secondary'"
             >
-              {{ game.winner === myTeamId ? 'Uzvara' : 'Zaudējums' }}
+              {{ resultLabel(ch) }}
             </span>
 
-            <!-- Teams and score -->
+            <!-- Teams + date -->
             <div class="flex-1 min-w-0">
-              <p class="font-medium text-sm">
-                {{ game.t1?.name }} vs {{ game.t2?.name }}
+              <p class="font-medium text-sm truncate">
+                {{ ch.challengerName }} vs {{ ch.challengedName }}
               </p>
-              <p class="text-xs text-secondary">{{ formatDate(game.timestamp) }}</p>
+              <p class="text-xs text-secondary">{{ formatDate(ch.scheduled_at) }}</p>
             </div>
 
             <!-- Final score -->
-            <span class="font-mono font-bold flex-shrink-0">
-              {{ game.score_01 }} : {{ game.score_02 }}
+            <span class="font-mono font-bold flex-shrink-0 text-lg">
+              {{ ch.final_score_team1 }} : {{ ch.final_score_team2 }}
             </span>
           </div>
         </div>
@@ -237,212 +324,336 @@ import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ middleware: 'auth' })
 
-const supabase = useSupabase()
-
+const supabase  = useSupabase()
 const authStore = useAuthStore()
 
-// ─── State ────────────────────────────────────────────────────────────────
-const activeTab    = ref('challenges')
-const loading      = ref(true)
-const actionLoading = ref(null) // stores game_request_id while accepting/declining
-const scoreLoading  = ref(null) // stores game_request_id while submitting score
+// ─── State ─────────────────────────────────────────────────────────────────
 
-const requests = ref([])  // game_requests involving the user's team
-const games    = ref([])  // completed games (from games table)
+const activeTab = ref('pending')
+const loading   = ref(true)
 
-// scoreInputs: reactive object to hold score inputs keyed by request ID + team
-// e.g. { 'GR000001_01': 78, 'GR000001_02': 65 }
-const scoreInputs = reactive({})
+const pendingChallenges   = ref([])
+const acceptedChallenges  = ref([])
+const completedChallenges = ref([])
 
-// The current user's team ID (from their profile)
+const isCaptain    = ref(false)
+const myTeamSize   = ref(0)
+const voteLoading  = ref(null)
+const scoreLoading = ref(null)
+const mismatchIds  = ref([])         // challenge_ids where last score submission mismatched
+const scoreInputs  = reactive({})   // { [challenge_id]: { t1: '', t2: '' } }
+
+const tabs = [
+  { id: 'pending',  label: 'Gaidošie' },
+  { id: 'accepted', label: 'Pieņemtās' },
+  { id: 'history',  label: 'Vēsture' },
+]
+
+// ─── Computed ──────────────────────────────────────────────────────────────
+
 const myTeamId = computed(() => authStore.profile?.current_team)
 
-// pendingCount: how many incoming challenges are waiting for our response
-const pendingCount = computed(() =>
-  requests.value.filter(r => r.status === 'pending' && r.isIncoming).length
+// Count of pending challenges where the current user is on the challenged team and hasn't voted
+const pendingForMe = computed(() =>
+  pendingChallenges.value.filter(ch =>
+    ch.challenged_team_id === myTeamId.value && !myVote(ch)
+  ).length
 )
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
-// statusLabel: converts status code to Latvian label
-function statusLabel(status) {
-  const map = {
-    pending:  'Gaida apstiprinājumu',
-    accepted: 'Apstiprināts',
-    declined: 'Noraidīts',
-  }
-  return map[status] || status
-}
-
-// formatDate: ISO timestamp → readable Latvian date
 function formatDate(ts) {
-  if (!ts) return ''
+  if (!ts) return '—'
   return new Date(ts).toLocaleDateString('lv-LV', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   })
 }
 
-// alreadySubmitted: checks if the current user has already entered a score for this request
-function alreadySubmitted(req) {
-  const userId = authStore.user?.id
-  return req.submitted_by_team1 === userId || req.submitted_by_team2 === userId
+function voteCount(ch, teamId, type) {
+  return (ch.votes || []).filter(v => v.team_id === teamId && v.vote === type).length
 }
 
-// ─── Actions ──────────────────────────────────────────────────────────────
-
-// acceptChallenge: sets the game_request status to 'accepted'
-async function acceptChallenge(req) {
-  actionLoading.value = req.game_request_id
-  await supabase
-    .from('game_requests')
-    .update({ status: 'accepted' })
-    .eq('game_request_id', req.game_request_id)
-  await fetchData()
-  actionLoading.value = null
+function myVote(ch) {
+  const v = (ch.votes || []).find(v => v.profile_id === authStore.user?.id)
+  return v?.vote || null
 }
 
-// declineChallenge: sets the game_request status to 'declined'
-async function declineChallenge(req) {
-  actionLoading.value = req.game_request_id
-  await supabase
-    .from('game_requests')
-    .update({ status: 'declined' })
-    .eq('game_request_id', req.game_request_id)
-  await fetchData()
-  actionLoading.value = null
+function canSubmitScore(ch) {
+  return new Date() >= new Date(ch.scheduled_at)
 }
 
-// submitScore: saves one team captain's score submission.
-// If both captains have now submitted matching scores, a games record is created.
-async function submitScore(req) {
-  const score01 = scoreInputs[req.game_request_id + '_01']
-  const score02 = scoreInputs[req.game_request_id + '_02']
+// Is the current user's captain slot already filled?
+function myCaptainSubmitted(ch) {
+  const isChallenger = ch.challenger_team_id === myTeamId.value
+  return isChallenger ? ch.cap1_score_team1 != null : ch.cap2_score_team1 != null
+}
 
-  if (score01 === undefined || score02 === undefined || score01 === '' || score02 === '') {
-    alert('Lūdzu ievadi abus rezultātus.')
+// Has the OTHER team's captain submitted?
+function otherCaptainSubmitted(ch) {
+  const isChallenger = ch.challenger_team_id === myTeamId.value
+  return isChallenger ? ch.cap2_score_team1 != null : ch.cap1_score_team1 != null
+}
+
+// What score did the other captain submit?
+function otherScore(ch) {
+  const isChallenger = ch.challenger_team_id === myTeamId.value
+  return isChallenger
+    ? { t1: ch.cap2_score_team1, t2: ch.cap2_score_team2 }
+    : { t1: ch.cap1_score_team1, t2: ch.cap1_score_team2 }
+}
+
+// What score did I submit?
+function myScore(ch) {
+  const isChallenger = ch.challenger_team_id === myTeamId.value
+  return isChallenger
+    ? { t1: ch.cap1_score_team1, t2: ch.cap1_score_team2 }
+    : { t1: ch.cap2_score_team1, t2: ch.cap2_score_team2 }
+}
+
+function resultLabel(ch) {
+  if (ch.final_score_team1 == null) return '—'
+  const iAmChallenger = ch.challenger_team_id === myTeamId.value
+  const iWon = iAmChallenger
+    ? ch.final_score_team1 > ch.final_score_team2
+    : ch.final_score_team2 > ch.final_score_team1
+  return iWon ? 'Uzvara' : 'Zaudējums'
+}
+
+function getScoreInput(challengeId) {
+  if (!scoreInputs[challengeId]) scoreInputs[challengeId] = { t1: '', t2: '' }
+  return scoreInputs[challengeId]
+}
+
+// ─── Data fetching ─────────────────────────────────────────────────────────
+
+async function fetchAll() {
+  if (!myTeamId.value) { loading.value = false; return }
+
+  // 1. All challenges involving my team
+  const { data: rawChallenges } = await supabase
+    .from('game_challenges')
+    .select('*')
+    .or(`challenger_team_id.eq.${myTeamId.value},challenged_team_id.eq.${myTeamId.value}`)
+    .order('created_at', { ascending: false })
+
+  const all = rawChallenges || []
+  if (!all.length) {
+    pendingChallenges.value   = []
+    acceptedChallenges.value  = []
+    completedChallenges.value = []
     return
   }
 
-  scoreLoading.value = req.game_request_id
+  // 2. Parallel: team names, court names, votes, team member counts
+  const teamIds      = [...new Set(all.flatMap(c => [c.challenger_team_id, c.challenged_team_id]))]
+  const courtIds     = [...new Set(all.map(c => c.court_id).filter(Boolean))]
+  const challengeIds = all.map(c => c.challenge_id)
 
-  const userId = authStore.user?.id
+  const [teamsRes, courtsRes, votesRes, membersRes] = await Promise.all([
+    supabase.from('teams').select('team_id, name').in('team_id', teamIds),
+    courtIds.length
+      ? supabase.from('courts').select('court_id, name').in('court_id', courtIds)
+      : { data: [] },
+    supabase.from('challenge_votes').select('*').in('challenge_id', challengeIds),
+    supabase.from('team_members').select('team_id, profile_id').in('team_id', teamIds),
+  ])
 
-  // Determine which team slot this captain represents
-  // team1 = the team that sent the challenge (lineup_01)
-  // team2 = the team that received the challenge (lineup_02)
-  const isTeam1 = req.lineup01TeamId === myTeamId.value
+  // Build lookup maps
+  const teamNameMap = Object.fromEntries((teamsRes.data || []).map(t => [t.team_id, t.name]))
+  const courtNameMap = Object.fromEntries((courtsRes.data || []).map(c => [c.court_id, c.name]))
 
-  // Build the update payload for this captain's submission
-  const updatePayload = isTeam1
-    ? { score_01_team1: score01, score_02_team1: score02, submitted_by_team1: userId }
-    : { score_01_team2: score01, score_02_team2: score02, submitted_by_team2: userId }
+  const votesMap = {}
+  for (const v of votesRes.data || []) {
+    if (!votesMap[v.challenge_id]) votesMap[v.challenge_id] = []
+    votesMap[v.challenge_id].push(v)
+  }
 
-  // Update the game_request with this captain's score
-  const { data: updatedReq, error } = await supabase
-    .from('game_requests')
-    .update(updatePayload)
-    .eq('game_request_id', req.game_request_id)
+  const sizeMap = {}
+  for (const m of membersRes.data || []) {
+    sizeMap[m.team_id] = (sizeMap[m.team_id] || 0) + 1
+  }
+
+  // Enrich
+  const enriched = all.map(c => ({
+    ...c,
+    challengerName: teamNameMap[c.challenger_team_id] || '?',
+    challengedName: teamNameMap[c.challenged_team_id] || '?',
+    courtName:      courtNameMap[c.court_id] || 'Nav norādīts',
+    votes:          votesMap[c.challenge_id] || [],
+    challengerSize: sizeMap[c.challenger_team_id] || 0,
+    challengedSize: sizeMap[c.challenged_team_id] || 0,
+  }))
+
+  pendingChallenges.value   = enriched.filter(c => c.status === 'pending')
+  acceptedChallenges.value  = enriched.filter(c => c.status === 'accepted')
+  completedChallenges.value = enriched.filter(c => c.status === 'completed')
+}
+
+// ─── Voting ────────────────────────────────────────────────────────────────
+
+async function castVote(ch, vote) {
+  voteLoading.value = ch.challenge_id
+
+  const { error } = await supabase.from('challenge_votes').upsert({
+    challenge_id: ch.challenge_id,
+    profile_id:   authStore.user.id,
+    team_id:      myTeamId.value,
+    vote,
+  }, { onConflict: 'challenge_id,profile_id' })
+
+  if (!error) {
+    await checkVoteOutcome(ch.challenge_id, ch.challenger_team_id, ch.challenged_team_id)
+  }
+
+  await fetchAll()
+  voteLoading.value = null
+}
+
+async function checkVoteOutcome(challengeId, challengerTeamId, challengedTeamId) {
+  const [{ data: votes }, { data: t1m }, { data: t2m }] = await Promise.all([
+    supabase.from('challenge_votes').select('profile_id, team_id, vote').eq('challenge_id', challengeId),
+    supabase.from('team_members').select('profile_id').eq('team_id', challengerTeamId),
+    supabase.from('team_members').select('profile_id').eq('team_id', challengedTeamId),
+  ])
+
+  const allVotes = votes || []
+
+  // Check cancellation: if any team cannot reach 3 accepts
+  for (const [teamId, members] of [[challengerTeamId, t1m || []], [challengedTeamId, t2m || []]]) {
+    const denies = allVotes.filter(v => v.team_id === teamId && v.vote === 'deny').length
+    const total  = members.length
+    if ((total - denies) < 3) {
+      await supabase.from('game_challenges').update({ status: 'canceled' }).eq('challenge_id', challengeId)
+      await notifyBothTeams(challengeId, challengerTeamId, challengedTeamId, 'challenge_canceled', {})
+      return
+    }
+  }
+
+  // Check acceptance: both teams have ≥3 accepts
+  const t1accepts = allVotes.filter(v => v.team_id === challengerTeamId && v.vote === 'accept').length
+  const t2accepts = allVotes.filter(v => v.team_id === challengedTeamId && v.vote === 'accept').length
+  if (t1accepts >= 3 && t2accepts >= 3) {
+    await supabase.from('game_challenges').update({ status: 'accepted' }).eq('challenge_id', challengeId)
+    await notifyBothTeams(challengeId, challengerTeamId, challengedTeamId, 'challenge_accepted', {})
+  }
+}
+
+// ─── Score submission ──────────────────────────────────────────────────────
+
+async function submitScore(ch) {
+  const inp = scoreInputs[ch.challenge_id]
+  if (!inp || inp.t1 === '' || inp.t2 === '' || inp.t1 == null || inp.t2 == null) return
+
+  scoreLoading.value = ch.challenge_id
+  // Clear any previous mismatch flag for this challenge
+  mismatchIds.value = mismatchIds.value.filter(id => id !== ch.challenge_id)
+
+  const isChallenger = ch.challenger_team_id === myTeamId.value
+  const update = isChallenger
+    ? { cap1_score_team1: Number(inp.t1), cap1_score_team2: Number(inp.t2) }
+    : { cap2_score_team1: Number(inp.t1), cap2_score_team2: Number(inp.t2) }
+
+  const { data: updated, error } = await supabase
+    .from('game_challenges')
+    .update(update)
+    .eq('challenge_id', ch.challenge_id)
     .select()
     .single()
 
-  if (error) {
-    alert('Kļūda, saglabājot rezultātu.')
-    scoreLoading.value = null
-    return
+  if (error) { scoreLoading.value = null; return }
+
+  const c = updated
+  const cap1Done = c.cap1_score_team1 != null
+  const cap2Done = c.cap2_score_team1 != null
+
+  if (cap1Done && cap2Done) {
+    const match = c.cap1_score_team1 === c.cap2_score_team1 &&
+                  c.cap1_score_team2 === c.cap2_score_team2
+
+    if (match) {
+      // Scores agree — finalize
+      await supabase.from('game_challenges').update({
+        final_score_team1: c.cap1_score_team1,
+        final_score_team2: c.cap1_score_team2,
+        status: 'completed',
+      }).eq('challenge_id', ch.challenge_id)
+
+      await notifyBothTeams(ch.challenge_id, ch.challenger_team_id, ch.challenged_team_id, 'game_completed', {
+        score: `${c.cap1_score_team1}:${c.cap1_score_team2}`,
+      })
+
+    } else {
+      // Mismatch — clear all score slots
+      await supabase.from('game_challenges').update({
+        cap1_score_team1: null, cap1_score_team2: null,
+        cap2_score_team1: null, cap2_score_team2: null,
+      }).eq('challenge_id', ch.challenge_id)
+
+      mismatchIds.value = [...mismatchIds.value, ch.challenge_id]
+      delete scoreInputs[ch.challenge_id]
+
+      // Notify both captains
+      const { data: captains } = await supabase
+        .from('team_members')
+        .select('profile_id')
+        .in('team_id', [ch.challenger_team_id, ch.challenged_team_id])
+        .eq('role', 'captain')
+
+      if (captains?.length) {
+        await supabase.from('notifications').insert(
+          captains.map(cap => ({
+            profile_id: cap.profile_id,
+            type:       'score_mismatch',
+            payload:    { challenge_id: ch.challenge_id },
+          }))
+        )
+      }
+    }
   }
 
-  // ── Check if both captains have now submitted matching scores ──────────
-  const r = updatedReq
-  const bothSubmitted = r.submitted_by_team1 && r.submitted_by_team2
-  const scoresMatch   = r.score_01_team1 === r.score_01_team2 && r.score_02_team1 === r.score_02_team2
-
-  if (bothSubmitted && scoresMatch) {
-    // Scores match! Determine the winner and create the final game record.
-    const s01 = r.score_01_team1
-    const s02 = r.score_02_team1
-    const winner = s01 > s02 ? req.lineup01TeamId : req.lineup02TeamId
-
-    await supabase.from('games').insert({
-      game_request_id: req.game_request_id,
-      team_01:         req.lineup01TeamId,
-      team_02:         req.lineup02TeamId,
-      score_01:        s01,
-      score_02:        s02,
-      winner:          winner,
-      timestamp:       new Date().toISOString(),
-    })
-  }
-
-  await fetchData()
+  await fetchAll()
   scoreLoading.value = null
 }
 
-// ─── Data Fetching ────────────────────────────────────────────────────────
+// ─── Notification helpers ──────────────────────────────────────────────────
 
-async function fetchData() {
-  if (!myTeamId.value) {
-    loading.value = false
-    return
-  }
+async function notifyBothTeams(challengeId, t1Id, t2Id, type, payload) {
+  const { data: members } = await supabase
+    .from('team_members')
+    .select('profile_id')
+    .in('team_id', [t1Id, t2Id])
 
-  // ── Fetch game requests involving the user's lineups ─────────────────
-  // We need to find all lineups that belong to the user's team
-  const { data: myLineups } = await supabase
-    .from('lineups')
-    .select('lineup_id')
-    .eq('team_id', myTeamId.value)
+  if (!members?.length) return
 
-  const myLineupIds = (myLineups || []).map(l => l.lineup_id)
-
-  if (myLineupIds.length > 0) {
-    const { data: reqData } = await supabase
-      .from('game_requests')
-      .select(`
-        *,
-        court:courts (name),
-        lin1:lineups!game_requests_lineup_01_fkey (
-          team_id,
-          team:teams (name)
-        ),
-        lin2:lineups!game_requests_lineup_02_fkey (
-          team_id,
-          team:teams (name)
-        )
-      `)
-      .or(`lineup_01.in.(${myLineupIds.join(',')}),lineup_02.in.(${myLineupIds.join(',')})`)
-      .order('timestamp', { ascending: false })
-
-    requests.value = (reqData || []).map(req => ({
-      ...req,
-      courtName:       req.court?.name,
-      lineup01TeamName: req.lin1?.team?.name,
-      lineup02TeamName: req.lin2?.team?.name,
-      lineup01TeamId:  req.lin1?.team_id,
-      lineup02TeamId:  req.lin2?.team_id,
-      // isIncoming: the challenge was sent TO us (our team is lineup_02)
-      isIncoming: myLineupIds.includes(req.lineup_02),
-      // isCaptain: true if the current user is a captain in either involved team
-      isCaptain: true, // simplified: all team members on this page can submit scores
+  await supabase.from('notifications').insert(
+    members.map(m => ({
+      profile_id: m.profile_id,
+      type,
+      payload:    { challenge_id: challengeId, ...payload },
     }))
-  }
-
-  // ── Fetch completed games for my team ────────────────────────────────
-  const { data: gamesData } = await supabase
-    .from('games')
-    .select(`
-      *,
-      t1:teams!games_team_01_fkey (name),
-      t2:teams!games_team_02_fkey (name)
-    `)
-    .or(`team_01.eq.${myTeamId.value},team_02.eq.${myTeamId.value}`)
-    .order('timestamp', { ascending: false })
-
-  games.value = gamesData || []
+  )
 }
+
+// ─── Lifecycle ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
   loading.value = true
-  await fetchData()
+
+  if (myTeamId.value) {
+    const [captainRes, membersRes] = await Promise.all([
+      supabase.from('team_members').select('role')
+        .eq('team_id', myTeamId.value)
+        .eq('profile_id', authStore.user.id)
+        .maybeSingle(),
+      supabase.from('team_members').select('profile_id')
+        .eq('team_id', myTeamId.value),
+    ])
+    isCaptain.value  = captainRes.data?.role === 'captain'
+    myTeamSize.value = membersRes.data?.length ?? 0
+  }
+
+  await fetchAll()
   loading.value = false
 })
 </script>
