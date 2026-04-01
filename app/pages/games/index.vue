@@ -179,6 +179,75 @@
               <p v-if="ch.comment" class="text-secondary text-sm mt-1 italic">„{{ ch.comment }}"</p>
             </div>
 
+            <!-- ── Attendance section (all players) ───────────────── -->
+            <div class="border-t border-secondary/10 pt-4 mb-4">
+              <p class="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Dalība</p>
+
+              <!-- Counts per team -->
+              <div class="flex gap-3 mb-3 text-sm">
+                <div class="flex-1 bg-secondary/5 rounded-xl px-3 py-2">
+                  <p class="font-medium text-xs text-secondary mb-1">{{ ch.challengerName }}</p>
+                  <p>
+                    <span class="text-green-600 font-semibold">{{ voteCount(ch, ch.challenger_team_id, 'accept') }}</span>
+                    <span class="text-secondary"> iet · </span>
+                    <span class="text-red-500 font-semibold">{{ voteCount(ch, ch.challenger_team_id, 'deny') }}</span>
+                    <span class="text-secondary"> neiet</span>
+                  </p>
+                </div>
+                <div class="flex-1 bg-secondary/5 rounded-xl px-3 py-2">
+                  <p class="font-medium text-xs text-secondary mb-1">{{ ch.challengedName }}</p>
+                  <p>
+                    <span class="text-green-600 font-semibold">{{ voteCount(ch, ch.challenged_team_id, 'accept') }}</span>
+                    <span class="text-secondary"> iet · </span>
+                    <span class="text-red-500 font-semibold">{{ voteCount(ch, ch.challenged_team_id, 'deny') }}</span>
+                    <span class="text-secondary"> neiet</span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Attendance error -->
+              <div
+                v-if="attendanceError[ch.challenge_id]"
+                class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 rounded-xl px-3 py-2 text-sm mb-2"
+              >
+                {{ attendanceError[ch.challenge_id] }}
+              </div>
+
+              <!-- Current status + change buttons -->
+              <div class="flex items-center gap-3">
+                <span
+                  class="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
+                  :class="myVote(ch) === 'accept'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : myVote(ch) === 'deny'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-secondary/10 text-secondary'"
+                >
+                  {{ myVote(ch) === 'accept' ? '✓ Iešu' : myVote(ch) === 'deny' ? '✕ Neiešu' : '— Nav atbildēts' }}
+                </span>
+
+                <!-- Going button (show if not already going) -->
+                <button
+                  v-if="myVote(ch) !== 'accept'"
+                  @click="changeAttendance(ch, 'accept')"
+                  :disabled="attendanceLoading === ch.challenge_id"
+                  class="text-sm font-medium px-3 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition"
+                >
+                  Iešu
+                </button>
+
+                <!-- Not going button (show if currently going or not voted) -->
+                <button
+                  v-if="myVote(ch) !== 'deny'"
+                  @click="changeAttendance(ch, 'deny')"
+                  :disabled="attendanceLoading === ch.challenge_id"
+                  class="text-sm font-medium px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition"
+                >
+                  Neiešu
+                </button>
+              </div>
+            </div>
+
             <!-- Score section (captains only) -->
             <div v-if="isCaptain" class="border-t border-secondary/10 pt-4">
 
@@ -340,8 +409,10 @@ const isCaptain    = ref(false)
 const myTeamSize   = ref(0)
 const voteLoading  = ref(null)
 const scoreLoading = ref(null)
-const mismatchIds  = ref([])         // challenge_ids where last score submission mismatched
-const scoreInputs  = reactive({})   // { [challenge_id]: { t1: '', t2: '' } }
+const mismatchIds      = ref([])       // challenge_ids where last score submission mismatched
+const scoreInputs      = reactive({}) // { [challenge_id]: { t1: '', t2: '' } }
+const attendanceLoading = ref(null)   // challenge_id currently being updated
+const attendanceError   = reactive({}) // { [challenge_id]: string }
 
 const tabs = [
   { id: 'pending',  label: 'Gaidošie' },
@@ -508,6 +579,38 @@ async function castVote(ch, vote) {
 
   await fetchAll()
   voteLoading.value = null
+}
+
+// changeAttendance: update attendance on an already-accepted challenge.
+// "not going" is only allowed if the team still has ≥3 going players without this user.
+async function changeAttendance(ch, vote) {
+  delete attendanceError[ch.challenge_id]
+  attendanceLoading.value = ch.challenge_id
+
+  if (vote === 'deny') {
+    // Count how many in my team are going EXCLUDING me
+    const goingWithoutMe = (ch.votes || []).filter(v =>
+      v.team_id === myTeamId.value &&
+      v.vote === 'accept' &&
+      v.profile_id !== authStore.user.id
+    ).length
+
+    if (goingWithoutMe < 3) {
+      attendanceError[ch.challenge_id] = 'Nevar atzīmēt "Neiešu" — komandā nepietiktu 3 spēlētāji.'
+      attendanceLoading.value = null
+      return
+    }
+  }
+
+  await supabase.from('challenge_votes').upsert({
+    challenge_id: ch.challenge_id,
+    profile_id:   authStore.user.id,
+    team_id:      myTeamId.value,
+    vote,
+  }, { onConflict: 'challenge_id,profile_id' })
+
+  await fetchAll()
+  attendanceLoading.value = null
 }
 
 async function checkVoteOutcome(challengeId, challengerTeamId, challengedTeamId) {
