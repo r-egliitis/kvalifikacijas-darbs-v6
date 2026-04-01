@@ -86,7 +86,7 @@
           <span class="font-semibold">
             <NuxtLink
               v-if="teamName"
-              :to="`/teams/${profile.current_team}`"
+              :to="`/teams/${profile?.current_team}`"
               class="text-primary hover:underline"
             >
               {{ teamName }}

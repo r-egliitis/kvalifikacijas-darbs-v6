@@ -632,27 +632,38 @@ async function fetchMembers() {
 
 async function fetchGames() {
   const { data, error } = await supabase
-    .from('games')
-    .select(`
-      game_id,
-      score_01,
-      score_02,
-      winner,
-      timestamp,
-      team_01,
-      team_02,
-      t1:teams!games_team_01_fkey (name),
-      t2:teams!games_team_02_fkey (name)
-    `)
-    .or(`team_01.eq.${teamId},team_02.eq.${teamId}`)
-    .order('timestamp', { ascending: false })
+    .from('game_challenges')
+    .select('*')
+    .or(`challenger_team_id.eq.${teamId},challenged_team_id.eq.${teamId}`)
+    .eq('status', 'completed')
+    .order('scheduled_at', { ascending: false })
 
-  if (!error && data) {
-    games.value = data.map(game => ({
-      ...game,
-      opponentName: game.team_01 === teamId ? game.t2?.name : game.t1?.name,
-    }))
-  }
+  if (error || !data?.length) return
+
+  // Fetch opponent team names (no FK constraints — manual join)
+  const uniqueIds = [...new Set(data.map(c =>
+    c.challenger_team_id === teamId ? c.challenged_team_id : c.challenger_team_id
+  ))]
+  const { data: teamRows } = await supabase
+    .from('teams').select('team_id, name').in('team_id', uniqueIds)
+  const nameMap = Object.fromEntries((teamRows || []).map(t => [t.team_id, t.name]))
+
+  games.value = data.map(c => {
+    const iChallenger = c.challenger_team_id === teamId
+    const opponentId  = iChallenger ? c.challenged_team_id : c.challenger_team_id
+    const winner      = c.final_score_team1 > c.final_score_team2
+      ? c.challenger_team_id : c.challenged_team_id
+    return {
+      game_id:      c.challenge_id,
+      score_01:     iChallenger ? c.final_score_team1 : c.final_score_team2,
+      score_02:     iChallenger ? c.final_score_team2 : c.final_score_team1,
+      winner,
+      team_01:      c.challenger_team_id,
+      team_02:      c.challenged_team_id,
+      timestamp:    c.scheduled_at,
+      opponentName: nameMap[opponentId] || '?',
+    }
+  })
 }
 
 // formatDate: converts ISO timestamp to a readable Latvian date
