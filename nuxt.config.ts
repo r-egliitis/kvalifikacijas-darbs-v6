@@ -24,6 +24,8 @@ export default defineNuxtConfig({
   // runtimeConfig: makes environment variables available in the app.
   // Variables under 'public' are safe to expose to the browser.
   runtimeConfig: {
+    // Server-only (never exposed to the browser)
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseKey: process.env.SUPABASE_KEY,

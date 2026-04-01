@@ -114,6 +114,110 @@
       </div>
 
     </div>
+
+    <!-- ── Delete account ─────────────────────────────────────────────── -->
+    <div class="mt-8 pt-6 border-t border-secondary/20">
+      <button
+        @click="openDeleteModal"
+        class="text-sm text-red-500 hover:text-red-600 hover:underline transition"
+      >
+        Dzēst kontu
+      </button>
+    </div>
+
+    <!-- ── Delete confirmation modal ──────────────────────────────────── -->
+    <div
+      v-if="deleteModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000] p-4"
+      @click.self="deleteModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-sm p-6 relative">
+        <button
+          @click="deleteModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none"
+        >✕</button>
+
+        <!-- Blocked: captain with other members -->
+        <template v-if="deleteModal.state === 'blocked-captain'">
+          <div class="text-3xl mb-3">⚠️</div>
+          <p class="font-semibold mb-2">Nevar dzēst kontu</p>
+          <p class="text-sm text-secondary">
+            Jūs esat komandas <strong>{{ teamName }}</strong> kapteinis un komandā ir citi spēlētāji.
+            Pirms konta dzēšanas nododiet kapteiņa lomu citam spēlētājam.
+          </p>
+          <button
+            @click="deleteModal.show = false"
+            class="mt-5 w-full border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+          >Labi</button>
+        </template>
+
+        <!-- Blocked: has accepted game -->
+        <template v-else-if="deleteModal.state === 'blocked-game'">
+          <div class="text-3xl mb-3">⚠️</div>
+          <p class="font-semibold mb-2">Nevar dzēst kontu</p>
+          <p class="text-sm text-secondary">
+            Jūs esat pierakstījies spēlei, kas vēl nav notikusi.
+            Vispirms atceliet dalību spēlē (Spēles → Pieņemtās → Neiešu).
+          </p>
+          <button
+            @click="deleteModal.show = false"
+            class="mt-5 w-full border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+          >Labi</button>
+        </template>
+
+        <!-- Warning: sole team member — team will be deleted too -->
+        <template v-else-if="deleteModal.state === 'warn-team-delete'">
+          <div class="text-3xl mb-3">🗑️</div>
+          <p class="font-semibold mb-2">Dzēst kontu?</p>
+          <p class="text-sm text-secondary mb-3">
+            Jūs esat vienīgais spēlētājs komandā <strong>{{ teamName }}</strong>.
+            Dzēšot kontu, <strong>komanda arī tiks dzēsta</strong>.
+          </p>
+          <p class="text-sm text-secondary">Šo darbību nevar atcelt.</p>
+          <div v-if="deleteModal.error" class="mt-3 text-sm text-red-500">{{ deleteModal.error }}</div>
+          <div class="flex gap-3 mt-5">
+            <button
+              @click="confirmDelete(true)"
+              :disabled="deleteModal.loading"
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition"
+            >
+              <span v-if="deleteModal.loading">Dzēš...</span>
+              <span v-else>Dzēst kontu un komandu</span>
+            </button>
+            <button
+              @click="deleteModal.show = false"
+              class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+            >Atcelt</button>
+          </div>
+        </template>
+
+        <!-- Normal confirmation -->
+        <template v-else-if="deleteModal.state === 'confirm'">
+          <div class="text-3xl mb-3">🗑️</div>
+          <p class="font-semibold mb-2">Dzēst kontu?</p>
+          <p class="text-sm text-secondary">
+            Jūsu konts tiks neatgriezeniski dzēsts. Vēlāk varēsiet reģistrēties ar to pašu e-pastu.
+          </p>
+          <div v-if="deleteModal.error" class="mt-3 text-sm text-red-500">{{ deleteModal.error }}</div>
+          <div class="flex gap-3 mt-5">
+            <button
+              @click="confirmDelete(false)"
+              :disabled="deleteModal.loading"
+              class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition"
+            >
+              <span v-if="deleteModal.loading">Dzēš...</span>
+              <span v-else>Dzēst kontu</span>
+            </button>
+            <button
+              @click="deleteModal.show = false"
+              class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+            >Atcelt</button>
+          </div>
+        </template>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -157,7 +261,6 @@ onMounted(async () => {
   loading.value = true
 
   if (profile.value?.current_team) {
-    // Fetch the team name from the teams table using the team_id
     const { data } = await supabase
       .from('teams')
       .select('name')
@@ -169,4 +272,105 @@ onMounted(async () => {
 
   loading.value = false
 })
+
+// ─── Delete account ────────────────────────────────────────────────────────
+
+const deleteModal = reactive({
+  show:    false,
+  state:   '',     // 'blocked-captain' | 'blocked-game' | 'warn-team-delete' | 'confirm'
+  loading: false,
+  error:   '',
+})
+
+async function openDeleteModal() {
+  deleteModal.error = ''
+  deleteModal.loading = false
+  const userId  = authStore.user?.id
+  const teamId  = profile.value?.current_team
+
+  // Check 1: accepted game vote on a currently accepted challenge
+  const { data: gameVote } = await supabase
+    .from('challenge_votes')
+    .select('challenge_id')
+    .eq('profile_id', userId)
+    .eq('vote', 'accept')
+    .limit(1)
+
+  if (gameVote?.length) {
+    // Verify at least one of those challenges is still accepted (not completed/canceled)
+    const challengeIds = gameVote.map(v => v.challenge_id)
+    const { data: activeChallenges } = await supabase
+      .from('game_challenges')
+      .select('challenge_id')
+      .in('challenge_id', challengeIds)
+      .eq('status', 'accepted')
+      .limit(1)
+
+    if (activeChallenges?.length) {
+      deleteModal.state = 'blocked-game'
+      deleteModal.show  = true
+      return
+    }
+  }
+
+  // Check 2: captain status
+  if (teamId) {
+    const { data: captainRow } = await supabase
+      .from('team_members')
+      .select('role')
+      .eq('team_id', teamId)
+      .eq('profile_id', userId)
+      .maybeSingle()
+
+    if (captainRow?.role === 'captain') {
+      // Count ALL members in the team
+      const { data: allMembers } = await supabase
+        .from('team_members')
+        .select('profile_id')
+        .eq('team_id', teamId)
+
+      if ((allMembers?.length ?? 0) > 1) {
+        // Other members exist — must hand over captaincy first
+        deleteModal.state = 'blocked-captain'
+        deleteModal.show  = true
+        return
+      }
+
+      // Sole member — will delete team too
+      deleteModal.state = 'warn-team-delete'
+      deleteModal.show  = true
+      return
+    }
+  }
+
+  // Regular player or no team — simple confirmation
+  deleteModal.state = 'confirm'
+  deleteModal.show  = true
+}
+
+async function confirmDelete(deleteTeam) {
+  deleteModal.loading = true
+  deleteModal.error   = ''
+
+  try {
+    const session = await supabase.auth.getSession()
+    const token   = session.data?.session?.access_token
+    if (!token) throw new Error('Nav aktīvas sesijas.')
+
+    const res = await $fetch('/api/delete-account', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body:    { deleteTeam },
+    })
+
+    if (res?.ok) {
+      // Sign out locally and redirect to home
+      await authStore.logout()
+      navigateTo('/')
+    }
+  } catch (err) {
+    deleteModal.error   = err?.data?.message || err?.message || 'Kļūda. Mēģiniet vēlreiz.'
+    deleteModal.loading = false
+  }
+}
 </script>
