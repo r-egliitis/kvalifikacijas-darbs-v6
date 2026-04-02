@@ -41,7 +41,17 @@
         </div>
 
         <div class="p-6">
-          <h1 class="text-2xl font-bold">{{ team.name }}</h1>
+          <div class="flex items-start justify-between gap-3">
+            <h1 class="text-2xl font-bold">{{ team.name }}</h1>
+            <!-- Edit button — captain only -->
+            <button
+              v-if="isCaptain"
+              @click="openEditModal"
+              class="flex-shrink-0 text-sm font-semibold text-primary hover:underline"
+            >
+              ✏️ Rediģēt
+            </button>
+          </div>
 
           <!-- City and age group badges -->
           <div class="flex flex-wrap gap-2 mt-2">
@@ -166,13 +176,20 @@
           </div>
         </div>
 
-        <!-- Add player button — captain only, shown below the player list -->
-        <div v-if="isCaptain" class="mt-4 pt-4 border-t border-secondary/10">
+        <!-- Captain actions: add player + delete team (sole member only) -->
+        <div v-if="isCaptain" class="mt-4 pt-4 border-t border-secondary/10 flex items-center justify-between gap-3">
           <button
             @click="addPlayerModal.show = true"
             class="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
           >
             + Pievienot spēlētāju
+          </button>
+          <button
+            v-if="members.length === 1"
+            @click="deleteModal.show = true; deleteModal.input = ''; deleteModal.errorMessage = ''"
+            class="text-sm font-semibold text-red-500 hover:underline"
+          >
+            🗑️ Dzēst komandu
           </button>
         </div>
       </div>
@@ -261,6 +278,169 @@
             Nē
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Edit Team modal (captain only) ────────────────────────────────── -->
+    <div
+      v-if="editModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="editModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+        <button
+          @click="editModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text transition text-xl leading-none"
+        >
+          ✕
+        </button>
+
+        <h3 class="font-bold text-lg mb-5">Rediģēt komandu</h3>
+
+        <!-- Error -->
+        <p v-if="editModal.errorMessage" class="text-red-500 text-sm mb-4">{{ editModal.errorMessage }}</p>
+
+        <div class="space-y-4">
+
+          <!-- Logo -->
+          <div>
+            <label class="block text-sm font-medium mb-2">Logo</label>
+            <div class="flex items-center gap-4">
+              <img
+                v-if="editModal.previewUrl || editModal.currentPicture"
+                :src="editModal.previewUrl || editModal.currentPicture"
+                class="w-16 h-16 rounded-xl object-cover border border-secondary/20 flex-shrink-0"
+              />
+              <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center text-2xl flex-shrink-0">
+                🏀
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="cursor-pointer text-sm text-primary font-medium hover:underline">
+                  Mainīt attēlu
+                  <input type="file" accept="image/*" class="hidden" @change="handleEditLogoSelect" />
+                </label>
+                <button
+                  v-if="editModal.currentPicture || editModal.newFile"
+                  @click="removeEditLogo"
+                  class="text-sm text-red-500 font-medium hover:underline text-left"
+                >
+                  Noņemt attēlu
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Name -->
+          <div>
+            <label class="block text-sm font-medium mb-1">
+              Komandas nosaukums <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="editModal.name"
+              type="text"
+              maxlength="50"
+              placeholder="Rīgas Lāči"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
+            />
+            <p class="text-xs text-secondary mt-1">{{ editModal.name.length }}/50</p>
+          </div>
+
+          <!-- City -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Pilsēta</label>
+            <input
+              v-model="editModal.city"
+              type="text"
+              placeholder="Rīga"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
+            />
+          </div>
+
+          <!-- Age group -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Vecuma grupa</label>
+            <select
+              v-model="editModal.age_group"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
+            >
+              <option value="">Izvēlies vecuma grupu</option>
+              <option value="U14">U14</option>
+              <option value="U16">U16</option>
+              <option value="U18">U18</option>
+              <option value="U20">U20</option>
+              <option value="Seniori">Seniori</option>
+              <option value="Jaukta">Jaukta</option>
+            </select>
+          </div>
+
+          <!-- Bio -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Apraksts</label>
+            <textarea
+              v-model="editModal.bio"
+              rows="3"
+              placeholder="Pastāsti par savu komandu..."
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition resize-none"
+            />
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 mt-6">
+          <button
+            @click="saveTeamEdit"
+            :disabled="editModal.saving"
+            class="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 transition"
+          >
+            <span v-if="editModal.saving">Saglabā...</span>
+            <span v-else>Saglabāt</span>
+          </button>
+          <button
+            @click="editModal.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition"
+          >
+            Atcelt
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Delete Team modal (sole captain only) ───────────────────────────── -->
+    <div
+      v-if="deleteModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="deleteModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <button
+          @click="deleteModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text transition text-xl leading-none"
+        >
+          ✕
+        </button>
+
+        <h3 class="font-bold text-lg mb-2">Dzēst komandu</h3>
+        <p class="text-sm text-secondary mb-4 leading-relaxed">
+          Šī darbība ir neatgriezeniska. Lai apstiprinātu, ieraksti komandas nosaukumu:
+        </p>
+
+        <p v-if="deleteModal.errorMessage" class="text-red-500 text-sm mb-3">{{ deleteModal.errorMessage }}</p>
+
+        <input
+          v-model="deleteModal.input"
+          type="text"
+          :placeholder="team.name"
+          class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-red-400/50 transition mb-4"
+        />
+
+        <button
+          @click="confirmDeleteTeam"
+          :disabled="deleteModal.input.trim() !== team.name || deleteModal.deleting"
+          class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          <span v-if="deleteModal.deleting">Dzēš...</span>
+          <span v-else>Dzēst komandu</span>
+        </button>
       </div>
     </div>
 
@@ -429,11 +609,10 @@ function handleLeaveTeam() {
   }
 
   if (members.value.length === 1) {
-    // Sole member: leaving deletes the entire team
-    openConfirm(
-      'Jūs esat vienīgais komandas dalībnieks. Atstājot komandu, tā tiks dzēsta. Turpināt?',
-      leaveAndDeleteTeam
-    )
+    // Sole member: leaving deletes the entire team — use type-name confirmation
+    deleteModal.show         = true
+    deleteModal.input        = ''
+    deleteModal.errorMessage = ''
   } else {
     // Regular leave (non-captain player)
     openConfirm('Vai tiešām vēlaties atstāt komandu?', leaveTeam)
@@ -501,6 +680,161 @@ async function assignCaptain(member) {
 
   if (e1 || e2) { actionError.value = 'Neizdevās mainīt kapteiņa lomu.'; return }
   await fetchMembers()
+}
+
+// ─── Edit Team modal ──────────────────────────────────────────────────────
+
+const editModal = reactive({
+  show:           false,
+  saving:         false,
+  errorMessage:   '',
+  name:           '',
+  bio:            '',
+  city:           '',
+  age_group:      '',
+  currentPicture: null,
+  removePicture:  false,
+  newFile:        null,
+  previewUrl:     null,
+})
+
+function openEditModal() {
+  const t = team.value
+  Object.assign(editModal, {
+    show:           true,
+    saving:         false,
+    errorMessage:   '',
+    name:           t.name,
+    bio:            t.bio || '',
+    city:           t.city || '',
+    age_group:      t.age_group || '',
+    currentPicture: t.picture || null,
+    removePicture:  false,
+    newFile:        null,
+    previewUrl:     null,
+  })
+}
+
+function handleEditLogoSelect(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  editModal.newFile       = file
+  editModal.removePicture = false
+  editModal.previewUrl    = URL.createObjectURL(file)
+}
+
+function removeEditLogo() {
+  editModal.newFile       = null
+  editModal.previewUrl    = null
+  editModal.currentPicture = null
+  editModal.removePicture  = true
+}
+
+// Latvian letters + basic latin + digits + spaces + hyphens
+const NAME_RE = /^[a-zA-ZāčēģīķļņōŗšūžĀČĒĢĪĶĻŅŌŖŠŪŽ0-9 \-]+$/
+
+async function saveTeamEdit() {
+  editModal.errorMessage = ''
+  const name = editModal.name.trim()
+
+  if (!name) {
+    editModal.errorMessage = 'Komandas nosaukums ir obligāts.'
+    return
+  }
+  if (name.length < 3 || name.length > 50) {
+    editModal.errorMessage = 'Nosaukumam jābūt 3–50 simboliem.'
+    return
+  }
+  if (!NAME_RE.test(name)) {
+    editModal.errorMessage = 'Nosaukumā drīkst izmantot tikai burtus, ciparus, atstarpes un defises.'
+    return
+  }
+
+  const nameChanged = name !== team.value.name
+
+  if (nameChanged) {
+    // 90-day cooldown check
+    const last = team.value.name_changed_at
+    if (last) {
+      const daysSince = (Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24)
+      if (daysSince < 90) {
+        const remaining = Math.ceil(90 - daysSince)
+        editModal.errorMessage = `Nosaukumu var mainīt ne biežāk kā reizi 90 dienās. Atlikušas ${remaining} dienas.`
+        return
+      }
+    }
+
+    // Uniqueness check
+    const { data: existing } = await supabase
+      .from('teams')
+      .select('team_id')
+      .ilike('name', name)
+      .neq('team_id', teamId)
+      .maybeSingle()
+
+    if (existing) {
+      editModal.errorMessage = 'Komanda ar šādu nosaukumu jau pastāv.'
+      return
+    }
+  }
+
+  editModal.saving = true
+
+  try {
+    const payload = {
+      name,
+      bio:       editModal.bio.trim()  || null,
+      city:      editModal.city.trim() || null,
+      age_group: editModal.age_group   || null,
+    }
+
+    if (nameChanged) {
+      payload.name_changed_at = new Date().toISOString()
+    }
+
+    if (editModal.removePicture && !editModal.newFile) {
+      payload.picture = null
+    } else if (editModal.newFile) {
+      const file     = editModal.newFile
+      const fileName = `team-${Date.now()}.${file.name.split('.').pop()}`
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true })
+      if (uploadError) throw new Error('Neizdevās augšupielādēt logo.')
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
+      payload.picture = urlData.publicUrl
+    }
+
+    const { error } = await supabase.from('teams').update(payload).eq('team_id', teamId)
+    if (error) throw new Error('Neizdevās saglabāt izmaiņas.')
+
+    await fetchTeam()
+    editModal.show = false
+  } catch (err) {
+    editModal.errorMessage = err.message || 'Kļūda. Mēģiniet vēlreiz.'
+  } finally {
+    editModal.saving = false
+  }
+}
+
+// ─── Delete Team modal ────────────────────────────────────────────────────
+
+const deleteModal = reactive({
+  show:         false,
+  input:        '',
+  deleting:     false,
+  errorMessage: '',
+})
+
+async function confirmDeleteTeam() {
+  deleteModal.deleting     = true
+  deleteModal.errorMessage = ''
+  try {
+    await leaveAndDeleteTeam()
+  } catch {
+    deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
+    deleteModal.deleting     = false
+  }
 }
 
 // ─── Add Player modal ─────────────────────────────────────────────────────
