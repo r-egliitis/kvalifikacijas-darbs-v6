@@ -62,7 +62,7 @@
               title="Rediģēt">✏️</button>
             <!-- Grant/revoke admin -->
             <button
-              @click="toggleAdmin(p)"
+              @click="openAdminConfirm(p)"
               :disabled="adminToggleLoading === p.profile_id"
               class="p-2 rounded-lg hover:bg-secondary/10 transition text-sm"
               :class="p.is_admin ? 'text-red-500 hover:text-red-600' : 'text-secondary hover:text-amber-500'"
@@ -149,6 +149,39 @@
             <span v-if="editModal.saving">Saglabā...</span><span v-else>Saglabāt</span>
           </button>
           <button @click="editModal.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Admin toggle confirm modal ──────────────────────────────────── -->
+    <div
+      v-if="adminConfirm.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="adminConfirm.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <button @click="adminConfirm.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none">✕</button>
+        <p class="font-semibold mb-2">
+          {{ adminConfirm.profile?.is_admin ? 'Atņemt admina tiesības?' : 'Piešķirt admina tiesības?' }}
+        </p>
+        <p class="text-sm text-secondary mb-5">
+          {{ adminConfirm.profile?.name }} {{ adminConfirm.profile?.surname }}
+          ({{ adminConfirm.profile?.visual_id }})
+        </p>
+        <p v-if="adminConfirm.error" class="text-red-500 text-sm mb-3">{{ adminConfirm.error }}</p>
+        <div class="flex gap-3">
+          <button
+            @click="confirmToggleAdmin"
+            :disabled="adminToggleLoading === adminConfirm.profile?.profile_id"
+            class="flex-1 font-semibold py-2.5 rounded-xl disabled:opacity-50 transition text-white"
+            :class="adminConfirm.profile?.is_admin ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary/90'"
+          >
+            <span v-if="adminToggleLoading === adminConfirm.profile?.profile_id">...</span>
+            <span v-else>{{ adminConfirm.profile?.is_admin ? 'Atņemt' : 'Piešķirt' }}</span>
+          </button>
+          <button @click="adminConfirm.show = false"
             class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
         </div>
       </div>
@@ -325,7 +358,15 @@ async function confirmDeleteProfile() {
 
 // ─── Admin toggle ──────────────────────────────────────────────────────────
 
-async function toggleAdmin(p) {
+const adminConfirm = reactive({ show: false, profile: null, error: '' })
+
+function openAdminConfirm(p) {
+  Object.assign(adminConfirm, { show: true, profile: p, error: '' })
+}
+
+async function confirmToggleAdmin() {
+  const p = adminConfirm.profile
+  adminConfirm.error = ''
   adminToggleLoading.value = p.profile_id
   try {
     const { data: { session } } = await supabase.auth.getSession()
@@ -343,8 +384,9 @@ async function toggleAdmin(p) {
     }
     const idx = profiles.value.findIndex(u => u.profile_id === p.profile_id)
     if (idx !== -1) profiles.value[idx].is_admin = !p.is_admin
+    adminConfirm.show = false
   } catch (err) {
-    alert(err.message)
+    adminConfirm.error = err.message
   } finally {
     adminToggleLoading.value = null
   }
