@@ -47,6 +47,15 @@
           >
             Profils
           </NuxtLink>
+
+          <NuxtLink
+            v-if="authStore.isAdmin"
+            to="/admin/users"
+            class="text-sm font-medium px-2 py-1 rounded hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors"
+            active-class="text-red-600 font-semibold"
+          >
+            Admins
+          </NuxtLink>
         </template>
       </div>
 

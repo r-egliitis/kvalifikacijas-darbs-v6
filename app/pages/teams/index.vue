@@ -218,12 +218,29 @@
 
       <!-- Teams grid -->
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <TeamCard
+        <div
           v-for="item in filteredTeams"
           :key="item.team.team_id"
-          :team="item.team"
-          :player-count="item.playerCount"
-        />
+          class="relative group"
+        >
+          <TeamCard :team="item.team" :player-count="item.playerCount" />
+          <!-- Admin overlay buttons -->
+          <div
+            v-if="authStore.isAdmin"
+            class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          >
+            <button
+              @click.prevent="openAdminTeamEdit(item.team)"
+              class="p-1.5 bg-surface border border-secondary/20 rounded-lg shadow text-sm hover:bg-primary/10 hover:text-primary transition"
+              title="Rediģēt"
+            >✏️</button>
+            <button
+              @click.prevent="openAdminTeamDelete(item.team)"
+              class="p-1.5 bg-surface border border-secondary/20 rounded-lg shadow text-sm hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition"
+              title="Dzēst"
+            >🗑️</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -280,6 +297,101 @@
           </p>
 
           <p class="text-xs text-secondary">{{ teamInfoPopup.playerCount }} spēlētāji</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Admin: Edit Team modal ─────────────────────────────────────────── -->
+    <div
+      v-if="adminTeamEdit.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="adminTeamEdit.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+        <button @click="adminTeamEdit.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none">✕</button>
+        <h3 class="font-bold text-lg mb-5">Rediģēt komandu</h3>
+        <p v-if="adminTeamEdit.error" class="text-red-500 text-sm mb-4">{{ adminTeamEdit.error }}</p>
+        <div class="space-y-4">
+          <!-- Logo -->
+          <div>
+            <label class="block text-sm font-medium mb-2">Logo</label>
+            <div class="flex items-center gap-4">
+              <img v-if="adminTeamEdit.previewUrl || adminTeamEdit.currentPicture"
+                :src="adminTeamEdit.previewUrl || adminTeamEdit.currentPicture"
+                class="w-16 h-16 rounded-xl object-cover border border-secondary/20 flex-shrink-0" />
+              <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center text-2xl flex-shrink-0">🏀</div>
+              <div class="flex flex-col gap-1.5">
+                <label class="cursor-pointer text-sm text-primary font-medium hover:underline">
+                  Mainīt attēlu
+                  <input type="file" accept="image/*" class="hidden" @change="handleAdminTeamLogoSelect" />
+                </label>
+                <button v-if="adminTeamEdit.currentPicture || adminTeamEdit.newFile"
+                  @click="adminTeamEdit.newFile = null; adminTeamEdit.previewUrl = null; adminTeamEdit.currentPicture = null; adminTeamEdit.removePicture = true"
+                  class="text-sm text-red-500 font-medium hover:underline text-left">Noņemt attēlu</button>
+              </div>
+            </div>
+          </div>
+          <!-- Name -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Nosaukums <span class="text-red-500">*</span></label>
+            <input v-model="adminTeamEdit.name" type="text" maxlength="50"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition" />
+          </div>
+          <!-- City -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Pilsēta</label>
+            <input v-model="adminTeamEdit.city" type="text"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition" />
+          </div>
+          <!-- Age group -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Vecuma grupa</label>
+            <select v-model="adminTeamEdit.age_group"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition">
+              <option value="">Izvēlies vecuma grupu</option>
+              <option value="U14">U14</option><option value="U16">U16</option>
+              <option value="U18">U18</option><option value="U20">U20</option>
+              <option value="Seniori">Seniori</option><option value="Jaukta">Jaukta</option>
+            </select>
+          </div>
+          <!-- Bio -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Apraksts</label>
+            <textarea v-model="adminTeamEdit.bio" rows="3"
+              class="w-full px-4 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition resize-none" />
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button @click="saveAdminTeamEdit" :disabled="adminTeamEdit.saving"
+            class="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 transition">
+            <span v-if="adminTeamEdit.saving">Saglabā...</span><span v-else>Saglabāt</span>
+          </button>
+          <button @click="adminTeamEdit.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Admin: Delete Team confirm ────────────────────────────────────── -->
+    <div
+      v-if="adminTeamDelete.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="adminTeamDelete.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <button @click="adminTeamDelete.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none">✕</button>
+        <p class="font-semibold mb-1">Dzēst komandu?</p>
+        <p class="text-sm text-secondary mb-5">„{{ adminTeamDelete.team?.name }}" tiks neatgriezeniski dzēsta.</p>
+        <p v-if="adminTeamDelete.error" class="text-red-500 text-sm mb-3">{{ adminTeamDelete.error }}</p>
+        <div class="flex gap-3">
+          <button @click="confirmAdminTeamDelete" :disabled="adminTeamDelete.loading"
+            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition">
+            <span v-if="adminTeamDelete.loading">Dzēš...</span><span v-else>Dzēst</span>
+          </button>
+          <button @click="adminTeamDelete.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
         </div>
       </div>
     </div>
@@ -438,6 +550,106 @@ async function openTeamInfo(teamId) {
   teamInfoPopup.team       = teamData
   teamInfoPopup.playerCount = count || 0
   teamInfoPopup.loading    = false
+}
+
+// ─── Admin: Team Edit / Delete ───────────────────────────────────────────
+
+const ADMIN_NAME_RE = /^[a-zA-ZāčēģīķļņōŗšūžĀČĒĢĪĶĻŅŌŖŠŪŽ0-9 \-]+$/
+
+const adminTeamEdit = reactive({
+  show: false, saving: false, error: '',
+  teamId: null,
+  name: '', bio: '', city: '', age_group: '',
+  currentPicture: null, removePicture: false, newFile: null, previewUrl: null,
+})
+
+const adminTeamDelete = reactive({
+  show: false, loading: false, error: '',
+  team: null,
+})
+
+function openAdminTeamEdit(team) {
+  Object.assign(adminTeamEdit, {
+    show: true, saving: false, error: '',
+    teamId: team.team_id,
+    name: team.name || '', bio: team.bio || '',
+    city: team.city || '', age_group: team.age_group || '',
+    currentPicture: team.picture || null,
+    removePicture: false, newFile: null, previewUrl: null,
+  })
+}
+
+function handleAdminTeamLogoSelect(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  adminTeamEdit.newFile       = file
+  adminTeamEdit.removePicture = false
+  adminTeamEdit.previewUrl    = URL.createObjectURL(file)
+}
+
+async function saveAdminTeamEdit() {
+  adminTeamEdit.error = ''
+  const name = adminTeamEdit.name.trim()
+  if (!name) { adminTeamEdit.error = 'Nosaukums ir obligāts.'; return }
+  if (name.length < 3 || name.length > 50) { adminTeamEdit.error = 'Nosaukumam jābūt 3–50 simboliem.'; return }
+  if (!ADMIN_NAME_RE.test(name)) { adminTeamEdit.error = 'Nosaukumā drīkst izmantot tikai burtus, ciparus, atstarpes un defises.'; return }
+
+  // Uniqueness check
+  const { data: existing } = await supabase.from('teams').select('team_id').ilike('name', name).neq('team_id', adminTeamEdit.teamId).maybeSingle()
+  if (existing) { adminTeamEdit.error = 'Komanda ar šādu nosaukumu jau pastāv.'; return }
+
+  adminTeamEdit.saving = true
+  try {
+    const payload = {
+      name,
+      bio:       adminTeamEdit.bio.trim()  || null,
+      city:      adminTeamEdit.city.trim() || null,
+      age_group: adminTeamEdit.age_group   || null,
+    }
+    if (adminTeamEdit.removePicture && !adminTeamEdit.newFile) {
+      payload.picture = null
+    } else if (adminTeamEdit.newFile) {
+      const file = adminTeamEdit.newFile
+      const fileName = `team-${Date.now()}.${file.name.split('.').pop()}`
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true })
+      if (uploadError) throw new Error('Neizdevās augšupielādēt logo.')
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
+      payload.picture = urlData.publicUrl
+    }
+    const { error } = await supabase.from('teams').update(payload).eq('team_id', adminTeamEdit.teamId)
+    if (error) throw new Error('Neizdevās saglabāt izmaiņas.')
+    // Update local array
+    const idx = teamsWithCounts.value.findIndex(i => i.team.team_id === adminTeamEdit.teamId)
+    if (idx !== -1) teamsWithCounts.value[idx].team = { ...teamsWithCounts.value[idx].team, ...payload }
+    adminTeamEdit.show = false
+  } catch (err) {
+    adminTeamEdit.error = err.message || 'Kļūda.'
+  } finally {
+    adminTeamEdit.saving = false
+  }
+}
+
+function openAdminTeamDelete(team) {
+  Object.assign(adminTeamDelete, { show: true, loading: false, error: '', team })
+}
+
+async function confirmAdminTeamDelete() {
+  adminTeamDelete.loading = true
+  adminTeamDelete.error   = ''
+  const id = adminTeamDelete.team.team_id
+  // Clear current_team on all members first
+  const { data: members } = await supabase.from('team_members').select('profile_id').eq('team_id', id)
+  if (members?.length) {
+    await supabase.from('profiles').update({ current_team: null }).in('profile_id', members.map(m => m.profile_id))
+  }
+  const { error } = await supabase.from('teams').delete().eq('team_id', id)
+  if (error) {
+    adminTeamDelete.error   = 'Neizdevās dzēst komandu.'
+    adminTeamDelete.loading = false
+    return
+  }
+  teamsWithCounts.value = teamsWithCounts.value.filter(i => i.team.team_id !== id)
+  adminTeamDelete.show = false
 }
 
 // ─── Data Fetching ────────────────────────────────────────────────────────

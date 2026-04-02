@@ -43,9 +43,9 @@
         <div class="p-6">
           <div class="flex items-start justify-between gap-3">
             <h1 class="text-2xl font-bold">{{ team.name }}</h1>
-            <!-- Edit button — captain only -->
+            <!-- Edit button — captain or admin -->
             <button
-              v-if="isCaptain"
+              v-if="isCaptain || authStore.isAdmin"
               @click="openEditModal"
               class="flex-shrink-0 text-sm font-semibold text-primary hover:underline"
             >
@@ -129,7 +129,7 @@
               - Non-captain members: see ⋮ only on their own row (to leave team)
             -->
             <div
-              v-if="isMember && (isCaptain || member.profile?.profile_id === authStore.user?.id)"
+              v-if="(isMember || authStore.isAdmin) && (isCaptain || authStore.isAdmin || member.profile?.profile_id === authStore.user?.id)"
               class="relative flex-shrink-0"
             >
               <button
@@ -145,8 +145,8 @@
                 v-if="openMenuId === member.team_member_id"
                 class="absolute right-0 top-full mt-1 w-52 bg-surface border border-secondary/10 rounded-xl shadow-lg z-20 overflow-hidden"
               >
-                <!-- Captain options for OTHER players' rows -->
-                <template v-if="isCaptain && member.profile?.profile_id !== authStore.user?.id">
+                <!-- Captain/admin options for OTHER players' rows -->
+                <template v-if="(isCaptain || authStore.isAdmin) && member.profile?.profile_id !== authStore.user?.id">
                   <button
                     @click="confirmAssignCaptain(member)"
                     class="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary/5 transition"
@@ -185,7 +185,7 @@
             + Pievienot spēlētāju
           </button>
           <button
-            v-if="members.length === 1"
+            v-if="(isCaptain && members.length === 1) || authStore.isAdmin"
             @click="deleteModal.show = true; deleteModal.input = ''; deleteModal.errorMessage = ''"
             class="text-sm font-semibold text-red-500 hover:underline"
           >
@@ -834,11 +834,31 @@ async function confirmDeleteTeam() {
   deleteModal.deleting     = true
   deleteModal.errorMessage = ''
   try {
-    await leaveAndDeleteTeam()
+    if (authStore.isAdmin && !isCaptain.value) {
+      await deleteTeamAsAdmin()
+    } else {
+      await leaveAndDeleteTeam()
+    }
   } catch {
     deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
     deleteModal.deleting     = false
   }
+}
+
+// deleteTeamAsAdmin: admin removes a team they are not a member of
+async function deleteTeamAsAdmin() {
+  // Clear current_team on all members before deleting the team row
+  const memberIds = members.value.map(m => m.profile?.profile_id).filter(Boolean)
+  if (memberIds.length) {
+    await supabase.from('profiles').update({ current_team: null }).in('profile_id', memberIds)
+  }
+  const { error } = await supabase.from('teams').delete().eq('team_id', teamId)
+  if (error) {
+    deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
+    deleteModal.deleting     = false
+    return
+  }
+  router.push('/teams')
 }
 
 // ─── Add Player modal ─────────────────────────────────────────────────────

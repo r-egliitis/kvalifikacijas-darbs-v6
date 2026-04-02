@@ -47,8 +47,8 @@
       <p>Ielādē...</p>
     </div>
 
-    <!-- No team -->
-    <div v-else-if="!myTeamId" class="text-center py-16 text-secondary">
+    <!-- No team (admin bypasses this) -->
+    <div v-else-if="!myTeamId && !authStore.isAdmin" class="text-center py-16 text-secondary">
       <div class="text-5xl mb-4">🏀</div>
       <p class="font-medium">Nav komandas</p>
       <p class="text-sm mt-1">
@@ -384,7 +384,123 @@
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 4: ADMINISTRĒT (admin only — all challenges)
+           ══════════════════════════════════════════════════════════════ -->
+      <div v-if="activeTab === 'admin' && authStore.isAdmin">
+
+        <div v-if="adminChallenges.length === 0" class="text-center py-12 text-secondary">
+          <div class="text-5xl mb-4">📋</div>
+          <p class="font-medium">Nav neviena izaicinājuma</p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div
+            v-for="ch in adminChallenges"
+            :key="ch.challenge_id"
+            class="bg-surface rounded-2xl border border-secondary/10 shadow-sm p-4"
+          >
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-sm truncate">{{ ch.challengerName }} vs {{ ch.challengedName }}</p>
+                <p class="text-xs text-secondary">📍 {{ ch.courtName }}</p>
+                <p class="text-xs text-secondary">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+              </div>
+              <span
+                class="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
+                :class="{
+                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': ch.status === 'pending',
+                  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400': ch.status === 'accepted',
+                  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': ch.status === 'completed',
+                  'bg-secondary/10 text-secondary': ch.status === 'canceled',
+                }"
+              >
+                {{ { pending: 'Gaida', accepted: 'Pieņemts', completed: 'Pabeigts', canceled: 'Atcelts' }[ch.status] || ch.status }}
+              </span>
+            </div>
+
+            <!-- Score row for completed games -->
+            <div v-if="ch.status === 'completed'" class="flex items-center gap-3 mt-2">
+              <span class="font-mono font-bold text-base">{{ ch.final_score_team1 }} : {{ ch.final_score_team2 }}</span>
+              <button
+                @click="openAdminEditScore(ch)"
+                class="text-xs text-primary font-semibold hover:underline"
+              >Labot rezultātu</button>
+            </div>
+
+            <!-- Admin actions -->
+            <div class="flex gap-2 mt-3 pt-3 border-t border-secondary/10">
+              <button
+                @click="openAdminDeleteChallenge(ch)"
+                class="text-xs text-red-500 font-semibold hover:underline"
+              >🗑️ Dzēst</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </template>
+
+    <!-- ── Admin: Delete Challenge modal ──────────────────────────────────── -->
+    <div
+      v-if="adminDeleteModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="adminDeleteModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <button @click="adminDeleteModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none">✕</button>
+        <p class="font-semibold mb-1">Dzēst izaicinājumu?</p>
+        <p class="text-sm text-secondary mb-5">
+          „{{ adminDeleteModal.challenge?.challengerName }} vs {{ adminDeleteModal.challenge?.challengedName }}" tiks dzēsts.
+        </p>
+        <div class="flex gap-3">
+          <button @click="confirmAdminDeleteChallenge" :disabled="adminDeleteModal.loading"
+            class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition">
+            <span v-if="adminDeleteModal.loading">Dzēš...</span><span v-else>Dzēst</span>
+          </button>
+          <button @click="adminDeleteModal.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Admin: Edit Score modal ────────────────────────────────────────── -->
+    <div
+      v-if="adminScoreModal.show"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      @click.self="adminScoreModal.show = false"
+    >
+      <div class="bg-surface rounded-2xl shadow-xl w-full max-w-xs p-6 relative">
+        <button @click="adminScoreModal.show = false"
+          class="absolute top-4 right-4 text-secondary hover:text-app-text text-xl leading-none">✕</button>
+        <h3 class="font-bold text-base mb-1">Labot rezultātu</h3>
+        <p class="text-sm text-secondary mb-4">{{ adminScoreModal.challengerName }} vs {{ adminScoreModal.challengedName }}</p>
+        <p v-if="adminScoreModal.error" class="text-red-500 text-sm mb-3">{{ adminScoreModal.error }}</p>
+        <div class="flex items-center gap-3 mb-5">
+          <div class="flex-1">
+            <label class="block text-xs text-secondary mb-1">{{ adminScoreModal.challengerName }}</label>
+            <input v-model.number="adminScoreModal.t1" type="number" min="0" placeholder="0"
+              class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-xl focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+          <span class="text-secondary font-bold text-xl pt-4">:</span>
+          <div class="flex-1">
+            <label class="block text-xs text-secondary mb-1">{{ adminScoreModal.challengedName }}</label>
+            <input v-model.number="adminScoreModal.t2" type="number" min="0" placeholder="0"
+              class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-center font-bold text-xl focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button @click="saveAdminScore" :disabled="adminScoreModal.saving"
+            class="flex-1 bg-primary text-white font-semibold py-2.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 transition">
+            <span v-if="adminScoreModal.saving">Saglabā...</span><span v-else>Saglabāt</span>
+          </button>
+          <button @click="adminScoreModal.show = false"
+            class="flex-1 border border-secondary/30 font-semibold py-2.5 rounded-xl hover:bg-secondary/10 transition">Atcelt</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -414,11 +530,15 @@ const scoreInputs      = reactive({}) // { [challenge_id]: { t1: '', t2: '' } }
 const attendanceLoading = ref(null)   // challenge_id currently being updated
 const attendanceError   = reactive({}) // { [challenge_id]: string }
 
-const tabs = [
-  { id: 'pending',  label: 'Gaidošie' },
-  { id: 'accepted', label: 'Pieņemtās' },
-  { id: 'history',  label: 'Vēsture' },
-]
+const tabs = computed(() => {
+  const base = [
+    { id: 'pending',  label: 'Gaidošie' },
+    { id: 'accepted', label: 'Pieņemtās' },
+    { id: 'history',  label: 'Vēsture' },
+  ]
+  if (authStore.isAdmin) base.push({ id: 'admin', label: 'Administrēt' })
+  return base
+})
 
 // ─── Computed ──────────────────────────────────────────────────────────────
 
@@ -719,6 +839,91 @@ async function submitScore(ch) {
   scoreLoading.value = null
 }
 
+// ─── Admin: All challenges ────────────────────────────────────────────────
+
+const adminChallenges = ref([])
+
+const adminDeleteModal = reactive({ show: false, loading: false, challenge: null })
+const adminScoreModal  = reactive({
+  show: false, saving: false, error: '',
+  challengeId: null, challengerName: '', challengedName: '',
+  t1: '', t2: '',
+})
+
+async function fetchAdminAll() {
+  const { data: raw } = await supabase
+    .from('game_challenges')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  const all = raw || []
+  if (!all.length) { adminChallenges.value = []; return }
+
+  const teamIds  = [...new Set(all.flatMap(c => [c.challenger_team_id, c.challenged_team_id]))]
+  const courtIds = [...new Set(all.map(c => c.court_id).filter(Boolean))]
+
+  const [teamsRes, courtsRes] = await Promise.all([
+    supabase.from('teams').select('team_id, name').in('team_id', teamIds),
+    courtIds.length ? supabase.from('courts').select('court_id, name').in('court_id', courtIds) : { data: [] },
+  ])
+
+  const teamMap  = Object.fromEntries((teamsRes.data  || []).map(t => [t.team_id,  t.name]))
+  const courtMap = Object.fromEntries((courtsRes.data || []).map(c => [c.court_id, c.name]))
+
+  adminChallenges.value = all.map(c => ({
+    ...c,
+    challengerName: teamMap[c.challenger_team_id]  || '?',
+    challengedName: teamMap[c.challenged_team_id]  || '?',
+    courtName:      courtMap[c.court_id]            || 'Nav norādīts',
+  }))
+}
+
+function openAdminDeleteChallenge(ch) {
+  Object.assign(adminDeleteModal, { show: true, loading: false, challenge: ch })
+}
+
+async function confirmAdminDeleteChallenge() {
+  adminDeleteModal.loading = true
+  await supabase.from('game_challenges').delete().eq('challenge_id', adminDeleteModal.challenge.challenge_id)
+  adminChallenges.value = adminChallenges.value.filter(c => c.challenge_id !== adminDeleteModal.challenge.challenge_id)
+  adminDeleteModal.show = false
+}
+
+function openAdminEditScore(ch) {
+  Object.assign(adminScoreModal, {
+    show: true, saving: false, error: '',
+    challengeId:    ch.challenge_id,
+    challengerName: ch.challengerName,
+    challengedName: ch.challengedName,
+    t1: ch.final_score_team1 ?? '',
+    t2: ch.final_score_team2 ?? '',
+  })
+}
+
+async function saveAdminScore() {
+  adminScoreModal.error = ''
+  const t1 = Number(adminScoreModal.t1)
+  const t2 = Number(adminScoreModal.t2)
+  if (isNaN(t1) || isNaN(t2) || adminScoreModal.t1 === '' || adminScoreModal.t2 === '') {
+    adminScoreModal.error = 'Ievadi abus rezultātus.'
+    return
+  }
+  adminScoreModal.saving = true
+  const { error } = await supabase.from('game_challenges').update({
+    final_score_team1: t1,
+    final_score_team2: t2,
+    status: 'completed',
+    // Clear pending captain scores to avoid confusion
+    cap1_score_team1: null, cap1_score_team2: null,
+    cap2_score_team1: null, cap2_score_team2: null,
+  }).eq('challenge_id', adminScoreModal.challengeId)
+
+  if (error) { adminScoreModal.error = 'Neizdevās saglabāt.'; adminScoreModal.saving = false; return }
+
+  await fetchAdminAll()
+  adminScoreModal.show = false
+}
+
 // ─── Notification helpers ──────────────────────────────────────────────────
 
 async function notifyBothTeams(challengeId, t1Id, t2Id, type, payload) {
@@ -757,6 +962,7 @@ onMounted(async () => {
   }
 
   await fetchAll()
+  if (authStore.isAdmin) await fetchAdminAll()
   loading.value = false
 })
 </script>
