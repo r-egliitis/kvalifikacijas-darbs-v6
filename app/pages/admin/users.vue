@@ -136,11 +136,6 @@
             <input v-model.number="editModal.number" type="number" min="0" max="99"
               class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition" />
           </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">Bio</label>
-            <textarea v-model="editModal.bio" rows="3"
-              class="w-full px-3 py-2 rounded-lg border border-secondary/30 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition resize-none" />
-          </div>
         </div>
 
         <div class="flex gap-3 mt-6">
@@ -259,7 +254,7 @@ onMounted(async () => {
 const editModal = reactive({
   show: false, saving: false, error: '',
   profileId: null,
-  name: '', surname: '', nickname: '', bio: '', number: null,
+  name: '', surname: '', nickname: '', number: null,
   currentPicture: null, removePicture: false, newFile: null, previewUrl: null,
 })
 
@@ -267,11 +262,10 @@ function openEditProfile(p) {
   Object.assign(editModal, {
     show: true, saving: false, error: '',
     profileId:      p.profile_id,
-    name:           p.name     || '',
-    surname:        p.surname  || '',
-    nickname:       p.nickname || '',
-    bio:            p.bio      || '',
-    number:         p.number   ?? null,
+    name:     p.name     || '',
+    surname:  p.surname  || '',
+    nickname: p.nickname || '',
+    number:   p.number   ?? null,
     currentPicture: p.picture  || null,
     removePicture: false, newFile: null, previewUrl: null,
   })
@@ -291,11 +285,10 @@ async function saveEditProfile() {
   editModal.saving = true
   try {
     const payload = {
-      name:    editModal.name.trim()    || null,
-      surname: editModal.surname.trim() || null,
+      name:     editModal.name.trim()     || null,
+      surname:  editModal.surname.trim()  || null,
       nickname: editModal.nickname.trim() || null,
-      bio:     editModal.bio.trim()     || null,
-      number:  editModal.number         ?? null,
+      number:   Number.isFinite(editModal.number) ? editModal.number : null,
     }
     if (editModal.removePicture && !editModal.newFile) {
       payload.picture = null
@@ -308,7 +301,7 @@ async function saveEditProfile() {
       payload.picture = urlData.publicUrl
     }
     const { error } = await supabase.from('profiles').update(payload).eq('profile_id', editModal.profileId)
-    if (error) throw new Error('Neizdevās saglabāt.')
+    if (error) throw new Error(error.message)
     const idx = profiles.value.findIndex(p => p.profile_id === editModal.profileId)
     if (idx !== -1) profiles.value[idx] = { ...profiles.value[idx], ...payload }
     editModal.show = false
