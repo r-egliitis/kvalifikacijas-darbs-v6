@@ -637,19 +637,23 @@ async function confirmAdminTeamDelete() {
   adminTeamDelete.loading = true
   adminTeamDelete.error   = ''
   const id = adminTeamDelete.team.team_id
-  // Clear current_team on all members first
-  const { data: members } = await supabase.from('team_members').select('profile_id').eq('team_id', id)
-  if (members?.length) {
-    await supabase.from('profiles').update({ current_team: null }).in('profile_id', members.map(m => m.profile_id))
-  }
-  const { error } = await supabase.from('teams').delete().eq('team_id', id)
-  if (error) {
-    adminTeamDelete.error   = 'Neizdevās dzēst komandu.'
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/delete-team', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ teamId: id }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body?.message || 'Neizdevās dzēst komandu.')
+    }
+    teamsWithCounts.value = teamsWithCounts.value.filter(i => i.team.team_id !== id)
+    adminTeamDelete.show = false
+  } catch (err) {
+    adminTeamDelete.error   = err.message || 'Neizdevās dzēst komandu.'
     adminTeamDelete.loading = false
-    return
   }
-  teamsWithCounts.value = teamsWithCounts.value.filter(i => i.team.team_id !== id)
-  adminTeamDelete.show = false
 }
 
 // ─── Data Fetching ────────────────────────────────────────────────────────

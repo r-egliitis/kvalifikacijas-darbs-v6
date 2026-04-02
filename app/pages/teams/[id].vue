@@ -630,21 +630,29 @@ async function leaveTeam() {
   router.push('/teams')
 }
 
-// leaveAndDeleteTeam: sole member leaves — deletes the team row first (while
-// the captain is still in team_members so RLS policies pass), then the cascade
-// removes team_members / team_invitations automatically.
+// leaveAndDeleteTeam: sole member/captain leaves — routes through the server
+// route which uses the service role and handles all FK cleanup correctly.
 async function leaveAndDeleteTeam() {
-  // Clear the FK on profiles first — otherwise the teams DELETE gets a 409
-  await supabase.from('profiles').update({ current_team: null }).eq('profile_id', authStore.user.id)
-
-  const { error } = await supabase.from('teams').delete().eq('team_id', teamId)
-  if (error) {
-    deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
-    deleteModal.deleting     = false
-    return
-  }
+  await callDeleteTeam(teamId)
   await authStore.fetchProfile()
   router.push('/teams')
+}
+
+// callDeleteTeam: shared helper that POSTs to the server-side delete-team route
+async function callDeleteTeam(id) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/delete-team', {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ teamId: id }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body?.message || 'Neizdevās dzēst komandu.')
+  }
 }
 
 // confirmRemovePlayer: captain removes another player from the team
@@ -834,31 +842,13 @@ async function confirmDeleteTeam() {
   deleteModal.deleting     = true
   deleteModal.errorMessage = ''
   try {
-    if (authStore.isAdmin && !isCaptain.value) {
-      await deleteTeamAsAdmin()
-    } else {
-      await leaveAndDeleteTeam()
-    }
-  } catch {
-    deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
+    await callDeleteTeam(teamId)
+    await authStore.fetchProfile()
+    router.push('/teams')
+  } catch (err) {
+    deleteModal.errorMessage = err.message || 'Neizdevās dzēst komandu.'
     deleteModal.deleting     = false
   }
-}
-
-// deleteTeamAsAdmin: admin removes a team they are not a member of
-async function deleteTeamAsAdmin() {
-  // Clear current_team on all members before deleting the team row
-  const memberIds = members.value.map(m => m.profile?.profile_id).filter(Boolean)
-  if (memberIds.length) {
-    await supabase.from('profiles').update({ current_team: null }).in('profile_id', memberIds)
-  }
-  const { error } = await supabase.from('teams').delete().eq('team_id', teamId)
-  if (error) {
-    deleteModal.errorMessage = 'Neizdevās dzēst komandu.'
-    deleteModal.deleting     = false
-    return
-  }
-  router.push('/teams')
 }
 
 // ─── Add Player modal ─────────────────────────────────────────────────────
