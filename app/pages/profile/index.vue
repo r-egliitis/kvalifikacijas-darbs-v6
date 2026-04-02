@@ -303,21 +303,31 @@ async function openDeleteModal() {
       .in('challenge_id', challengeIds)
       .eq('status', 'accepted')
 
-    for (const ch of activeChallenges || []) {
-      // Count teammates who accepted, excluding this user
-      const { data: othersGoing } = await supabase
-        .from('challenge_votes')
+    if (activeChallenges?.length) {
+      // Fetch actual teammates from team_members (reliable source — not challenge_votes.team_id)
+      const { data: myTeamMembers } = await supabase
+        .from('team_members')
         .select('profile_id')
-        .eq('challenge_id', ch.challenge_id)
         .eq('team_id', teamId)
-        .eq('vote', 'accept')
         .neq('profile_id', userId)
+      const teammateIds = (myTeamMembers || []).map(m => m.profile_id)
 
-      if ((othersGoing?.length ?? 0) < 3) {
-        // Removing this player drops team below 3 — block
-        deleteModal.state = 'blocked-game'
-        deleteModal.show  = true
-        return
+      for (const ch of activeChallenges) {
+        // Count teammates (excluding this user) who accepted this challenge
+        const { data: othersGoing } = teammateIds.length
+          ? await supabase
+              .from('challenge_votes')
+              .select('profile_id')
+              .eq('challenge_id', ch.challenge_id)
+              .eq('vote', 'accept')
+              .in('profile_id', teammateIds)
+          : { data: [] }
+
+        if ((othersGoing?.length ?? 0) < 3) {
+          deleteModal.state = 'blocked-game'
+          deleteModal.show  = true
+          return
+        }
       }
     }
   }
