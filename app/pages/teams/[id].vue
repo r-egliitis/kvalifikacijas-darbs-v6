@@ -630,15 +630,17 @@ async function leaveTeam() {
   router.push('/teams')
 }
 
-// leaveAndDeleteTeam: sole member leaves — also deletes the team row
+// leaveAndDeleteTeam: sole member leaves — deletes the team row first (while
+// the captain is still in team_members so RLS policies pass), then the cascade
+// removes team_members / team_invitations automatically.
 async function leaveAndDeleteTeam() {
-  const membership = myMembership.value
-  if (!membership) return
-
-  await supabase.from('team_members').delete().eq('team_member_id', membership.team_member_id)
+  const { error } = await supabase.from('teams').delete().eq('team_id', teamId)
+  if (error) {
+    deleteModal.errorMessage = 'Neizdevās dzēst komandu. Pārbaudi Supabase RLS politikas.'
+    deleteModal.deleting     = false
+    return
+  }
   await supabase.from('profiles').update({ current_team: null }).eq('profile_id', authStore.user.id)
-  // Cascade on team_invitations and team_members handles cleanup
-  await supabase.from('teams').delete().eq('team_id', teamId)
   await authStore.fetchProfile()
   router.push('/teams')
 }
