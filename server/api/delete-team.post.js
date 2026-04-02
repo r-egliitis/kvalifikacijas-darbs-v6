@@ -50,18 +50,11 @@ export default defineEventHandler(async (event) => {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Get all member profile IDs to clear current_team
-  const { data: members } = await admin
-    .from('team_members')
-    .select('profile_id')
-    .eq('team_id', teamId)
-
-  if (members?.length) {
-    await admin
-      .from('profiles')
-      .update({ current_team: null })
-      .in('profile_id', members.map(m => m.profile_id))
-  }
+  // Clear current_team on ANY profile still pointing at this team
+  await admin
+    .from('profiles')
+    .update({ current_team: null })
+    .eq('current_team', teamId)
 
   // Delete in FK dependency order
   await admin.from('game_challenges').delete()
