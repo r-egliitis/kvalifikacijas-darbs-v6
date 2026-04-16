@@ -21,7 +21,7 @@
         class="h-16 w-16 object-cover rounded-full border-2 border-surface shadow"
       />
       <!-- Default icon when no logo is set -->
-      <span v-else class="text-4xl">🏀</span>
+      <Icon v-else name="ph:basketball" class="w-12 h-12 text-primary/40" />
     </div>
 
     <!-- Card body -->
@@ -34,9 +34,9 @@
       <div class="flex flex-wrap gap-1.5 mt-2">
         <span
           v-if="team.city"
-          class="text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full"
+          class="inline-flex items-center gap-1 text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full"
         >
-          📍 {{ team.city }}
+          <Icon name="ph:map-pin" class="w-3 h-3" /> {{ team.city }}
         </span>
         <span
           v-if="team.age_group"
@@ -47,8 +47,8 @@
       </div>
 
       <!-- Player count -->
-      <p class="text-xs text-secondary mt-3">
-        👥 {{ playerCount }} {{ playerCountLabel }}
+      <p class="flex items-center gap-1 text-xs text-secondary mt-3">
+        <Icon name="ph:users" class="w-3.5 h-3.5" /> {{ playerCount }} {{ playerCountLabel }}
       </p>
 
     </div>

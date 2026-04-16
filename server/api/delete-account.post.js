@@ -61,8 +61,6 @@ export default defineEventHandler(async (event) => {
   await admin.from('challenge_votes').delete().eq('profile_id', userId)
   await admin.from('notifications').delete().eq('profile_id', userId)
   await admin.from('team_invitations').delete().eq('invitee_profile_id', userId)
-  await admin.from('lineup_players').delete().eq('profile_id', userId)
-  await admin.from('game_votes').delete().eq('profile_id', userId)
 
   // Delete profile and confirm it was removed
   const { error: profileErr } = await admin

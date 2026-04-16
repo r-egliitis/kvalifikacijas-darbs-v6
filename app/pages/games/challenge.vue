@@ -20,7 +20,7 @@
 
     <!-- Loading -->
     <div v-else-if="loading" class="text-center py-10 text-secondary">
-      <div class="text-3xl mb-2">⏳</div>
+      <Icon name="ph:hourglass" class="w-10 h-10 mx-auto mb-2" />
       <p>Ielādē...</p>
     </div>
 
@@ -39,7 +39,7 @@
 
       <!-- Success -->
       <div v-if="savedOk" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-4 py-3 text-sm mb-6">
-        ✅ Izaicinājums nosūtīts!
+        <Icon name="ph:check-circle" class="w-4 h-4 inline-block align-middle mr-1" />Izaicinājums nosūtīts!
         <NuxtLink to="/games" class="font-medium underline ml-1">Skatīt Spēles</NuxtLink>
       </div>
 
@@ -147,7 +147,7 @@
                 : 'hover:bg-secondary/10'"
             >
               <span class="truncate">{{ court.name }}</span>
-              <span class="ml-2 shrink-0 text-xs opacity-70">{{ court.outdoor ? '☀️' : '🏢' }}</span>
+              <Icon :name="court.outdoor ? 'ph:sun' : 'ph:building'" class="ml-2 w-3.5 h-3.5 shrink-0 opacity-70" />
             </button>
           </div>
         </div>
@@ -171,10 +171,10 @@
               <button
                 type="button"
                 @click="dateInput?.click()"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition text-lg pointer-events-none"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition pointer-events-none"
                 tabindex="-1"
               >
-                📅
+                <Icon name="ph:calendar" class="w-4 h-4" />
               </button>
             </div>
             <!-- Time -->
@@ -212,7 +212,7 @@
           class="w-full bg-primary text-white font-semibold py-2.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           <span v-if="saving">Sūta...</span>
-          <span v-else>Sūtīt izaicinājumu ⚔️</span>
+          <span v-else class="flex items-center justify-center gap-2"><Icon name="ph:sword" class="w-4 h-4" /> Sūtīt izaicinājumu</span>
         </button>
 
       </form>
@@ -265,9 +265,11 @@ const form = reactive({
 })
 
 // Leaflet (managed imperatively — not reactive)
-let map     = null
-let markers = []
-let L       = null
+let map          = null
+let markers      = []
+let L            = null
+let tileLayer    = null
+let darkObserver = null
 
 // ─── Computed ──────────────────────────────────────────────────────────────
 
@@ -480,11 +482,30 @@ onMounted(async () => {
   })
 
   map = L.map('challenge-court-map').setView([56.95, 24.11], 7)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  }).addTo(map)
+
+  function getCartoDBoUrl() {
+    return document.documentElement.classList.contains('dark')
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+  }
+
+  const cartoAttribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+
+  tileLayer = L.tileLayer(getCartoDBoUrl(), { attribution: cartoAttribution, maxZoom: 19 }).addTo(map)
+
+  // Swap tiles when the user toggles dark mode
+  darkObserver = new MutationObserver(() => {
+    if (!map) return
+    tileLayer.remove()
+    tileLayer = L.tileLayer(getCartoDBoUrl(), { attribution: cartoAttribution, maxZoom: 19 }).addTo(map)
+  })
+  darkObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 
   drawMarkers()
+})
+
+onUnmounted(() => {
+  darkObserver?.disconnect()
+  map?.remove()
 })
 </script>

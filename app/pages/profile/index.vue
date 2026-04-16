@@ -14,12 +14,12 @@
       v-if="showSavedMessage"
       class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-4 py-3 text-sm mb-6 flex items-center gap-2"
     >
-      ✅ Profils saglabāts veiksmīgi!
+      <Icon name="ph:check-circle" class="w-4 h-4 shrink-0" /> Profils saglabāts veiksmīgi!
     </div>
 
     <!-- Loading state while profile data is being fetched -->
     <div v-if="loading" class="text-center py-16 text-secondary">
-      <div class="text-4xl mb-3">⏳</div>
+      <Icon name="ph:hourglass" class="w-12 h-12 mx-auto mb-3" />
       <p>Ielādē profilu...</p>
     </div>
 
@@ -40,9 +40,9 @@
           <!-- Default avatar when no photo is set -->
           <div
             v-else
-            class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-4 border-surface shadow text-4xl"
+            class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-4 border-surface shadow"
           >
-            🙋
+            <Icon name="ph:user" class="w-12 h-12 text-primary/60" />
           </div>
         </div>
 
@@ -139,7 +139,7 @@
 
         <!-- Blocked: captain with other members -->
         <template v-if="deleteModal.state === 'blocked-captain'">
-          <div class="text-3xl mb-3">⚠️</div>
+          <Icon name="ph:warning" class="w-10 h-10 text-amber-500 mb-3" />
           <p class="font-semibold mb-2">Nevar dzēst kontu</p>
           <p class="text-sm text-secondary">
             Jūs esat komandas <strong>{{ teamName }}</strong> kapteinis un komandā ir citi spēlētāji.
@@ -153,7 +153,7 @@
 
         <!-- Blocked: has accepted game -->
         <template v-else-if="deleteModal.state === 'blocked-game'">
-          <div class="text-3xl mb-3">⚠️</div>
+          <Icon name="ph:warning" class="w-10 h-10 text-amber-500 mb-3" />
           <p class="font-semibold mb-2">Nevar dzēst kontu</p>
           <p class="text-sm text-secondary">
             Jūs esat pierakstījies spēlei, kas vēl nav notikusi.
@@ -167,7 +167,7 @@
 
         <!-- Warning: sole team member — team will be deleted too -->
         <template v-else-if="deleteModal.state === 'warn-team-delete'">
-          <div class="text-3xl mb-3">🗑️</div>
+          <Icon name="ph:trash" class="w-10 h-10 text-red-500 mb-3" />
           <p class="font-semibold mb-2">Dzēst kontu?</p>
           <p class="text-sm text-secondary mb-3">
             Jūs esat vienīgais spēlētājs komandā <strong>{{ teamName }}</strong>.
@@ -193,7 +193,7 @@
 
         <!-- Normal confirmation -->
         <template v-else-if="deleteModal.state === 'confirm'">
-          <div class="text-3xl mb-3">🗑️</div>
+          <Icon name="ph:trash" class="w-10 h-10 text-red-500 mb-3" />
           <p class="font-semibold mb-2">Dzēst kontu?</p>
           <p class="text-sm text-secondary">
             Jūsu konts tiks neatgriezeniski dzēsts. Vēlāk varēsiet reģistrēties ar to pašu e-pastu.

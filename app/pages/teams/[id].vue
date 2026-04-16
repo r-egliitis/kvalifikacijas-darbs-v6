@@ -10,13 +10,13 @@
 
     <!-- Loading state -->
     <div v-if="loading" class="text-center py-16 text-secondary">
-      <div class="text-4xl mb-3">⏳</div>
+      <Icon name="ph:hourglass" class="w-12 h-12 mx-auto mb-3" />
       <p>Ielādē komandu...</p>
     </div>
 
     <!-- Team not found -->
     <div v-else-if="!team" class="text-center py-16 text-secondary">
-      <div class="text-5xl mb-4">❓</div>
+      <Icon name="ph:warning-circle" class="w-16 h-16 mx-auto mb-4" />
       <p class="font-medium">Komanda nav atrasta</p>
       <NuxtLink to="/teams" class="text-primary hover:underline text-sm mt-2 block">
         ← Atpakaļ uz komandām
@@ -37,7 +37,7 @@
             :alt="team.name"
             class="h-20 w-20 rounded-full object-cover border-4 border-surface shadow"
           />
-          <span v-else class="text-6xl">🏀</span>
+          <Icon v-else name="ph:basketball" class="w-16 h-16 text-primary/40" />
         </div>
 
         <div class="p-6">
@@ -49,14 +49,14 @@
               @click="openEditModal"
               class="flex-shrink-0 text-sm font-semibold text-primary hover:underline"
             >
-              ✏️ Rediģēt
+              <Icon name="ph:pencil" class="w-4 h-4 inline-block align-middle mr-1" />Rediģēt
             </button>
           </div>
 
           <!-- City and age group badges -->
           <div class="flex flex-wrap gap-2 mt-2">
-            <span v-if="team.city" class="text-sm bg-secondary/10 text-secondary px-3 py-1 rounded-full">
-              📍 {{ team.city }}
+            <span v-if="team.city" class="inline-flex items-center gap-1 text-sm bg-secondary/10 text-secondary px-3 py-1 rounded-full">
+              <Icon name="ph:map-pin" class="w-3.5 h-3.5" /> {{ team.city }}
             </span>
             <span v-if="team.age_group" class="text-sm bg-accent/10 text-accent font-medium px-3 py-1 rounded-full">
               {{ team.age_group }}
@@ -94,8 +94,8 @@
               :alt="member.profile.name"
               class="w-10 h-10 rounded-full object-cover flex-shrink-0"
             />
-            <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-lg">
-              🙋
+            <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Icon name="ph:user" class="w-5 h-5 text-primary/50" />
             </div>
 
             <!-- Name, nickname, captain badge -->
@@ -189,7 +189,7 @@
             @click="deleteModal.show = true; deleteModal.input = ''; deleteModal.errorMessage = ''"
             class="text-sm font-semibold text-red-500 hover:underline"
           >
-            🗑️ Dzēst komandu
+            <Icon name="ph:trash" class="w-4 h-4 inline-block align-middle mr-1" />Dzēst komandu
           </button>
         </div>
       </div>
@@ -311,8 +311,8 @@
                 :src="editModal.previewUrl || editModal.currentPicture"
                 class="w-16 h-16 rounded-xl object-cover border border-secondary/20 flex-shrink-0"
               />
-              <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center text-2xl flex-shrink-0">
-                🏀
+              <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                <Icon name="ph:basketball" class="w-8 h-8 text-primary/40" />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="cursor-pointer text-sm text-primary font-medium hover:underline">
@@ -494,8 +494,8 @@
             :src="addPlayerModal.foundPlayer.picture"
             class="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
-          <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
-            🙋
+          <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Icon name="ph:user" class="w-5 h-5 text-primary/50" />
           </div>
 
           <div class="flex-1 min-w-0">
@@ -918,6 +918,17 @@ async function searchPlayer() {
 async function invitePlayer(profile) {
   addPlayerModal.inviting      = true
   addPlayerModal.errorMessage  = ''
+
+  // Enforce 10-player roster limit
+  const { count: memberCount } = await supabase
+    .from('team_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+  if (memberCount >= 10) {
+    addPlayerModal.errorMessage = 'Komanda ir pilna (maks. 10 spēlētāji).'
+    addPlayerModal.inviting = false
+    return
+  }
 
   const { error } = await supabase
     .from('team_invitations')

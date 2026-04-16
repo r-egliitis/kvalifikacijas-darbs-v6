@@ -11,8 +11,8 @@
     <section class="bg-gradient-to-br from-primary/10 to-accent/5 py-20 px-4">
       <div class="max-w-4xl mx-auto text-center">
 
-        <!-- Large basketball emoji as hero icon -->
-        <div class="text-7xl mb-6">🏀</div>
+        <!-- Large basketball icon as hero icon -->
+        <Icon name="ph:basketball" class="w-24 h-24 text-primary mx-auto mb-6" />
 
         <!-- Main headline -->
         <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
@@ -26,8 +26,8 @@
           viss vienā vietā.
         </p>
 
-        <!-- Call-to-action buttons -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <!-- Call-to-action buttons (guests only) -->
+        <div v-if="!authStore.isLoggedIn" class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink
             to="/auth/register"
             class="bg-primary text-white font-semibold px-8 py-3 rounded-xl hover:bg-primary/90 transition text-lg"
@@ -56,7 +56,7 @@
 
           <!-- Feature: Teams -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">👥</div>
+            <Icon name="ph:users" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Komandu pārvaldība</h3>
             <p class="text-secondary text-sm">
               Izveido komandu, pievienojies esošai komandai un pārvaldi savu sastāvu.
@@ -65,7 +65,7 @@
 
           <!-- Feature: Game challenges -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">⚔️</div>
+            <Icon name="ph:sword" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Izaicinājumi</h3>
             <p class="text-secondary text-sm">
               Izaicini citas komandas, norodi laiku un laukumu, apstiprinājiet izaicinājumu.
@@ -74,7 +74,7 @@
 
           <!-- Feature: Results -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">📊</div>
+            <Icon name="ph:chart-bar" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Rezultāti</h3>
             <p class="text-secondary text-sm">
               Reģistrē spēļu rezultātus un seko līdzi komandas spēļu vēsturei.
@@ -83,7 +83,7 @@
 
           <!-- Feature: Courts -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">🏟️</div>
+            <Icon name="ph:court-basketball" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Laukumu katalogs</h3>
             <p class="text-secondary text-sm">
               Atrod basketbola laukumus — gan ārtelpas, gan iekštelpu — ar adresēm un kartēm.
@@ -92,7 +92,7 @@
 
           <!-- Feature: Profiles -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">🙋</div>
+            <Icon name="ph:user" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Spēlētāja profils</h3>
             <p class="text-secondary text-sm">
               Izveido savu profilu ar vārdu, segvārdu, krekla numuru un profilbildi.
@@ -101,7 +101,7 @@
 
           <!-- Feature: Lineups -->
           <div class="bg-surface rounded-2xl p-6 shadow-sm border border-secondary/10 hover:shadow-md transition">
-            <div class="text-4xl mb-4">📋</div>
+            <Icon name="ph:clipboard" class="w-12 h-12 text-primary mb-4" />
             <h3 class="font-bold text-lg mb-2">Sākumsastāvs</h3>
             <p class="text-secondary text-sm">
               Atlasi spēlētājus sākumsastāvam pirms katras spēles.
@@ -119,15 +119,15 @@
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <NuxtLink
             to="/teams"
-            class="border border-secondary/30 rounded-xl px-6 py-3 hover:border-primary hover:text-primary transition font-medium"
+            class="inline-flex items-center gap-2 border border-secondary/30 rounded-xl px-6 py-3 hover:border-primary hover:text-primary transition font-medium"
           >
-            🏀 Skatīt komandas
+            <Icon name="ph:basketball" class="w-5 h-5" /> Skatīt komandas
           </NuxtLink>
           <NuxtLink
             to="/courts"
-            class="border border-secondary/30 rounded-xl px-6 py-3 hover:border-primary hover:text-primary transition font-medium"
+            class="inline-flex items-center gap-2 border border-secondary/30 rounded-xl px-6 py-3 hover:border-primary hover:text-primary transition font-medium"
           >
-            🏟️ Skatīt laukumus
+            <Icon name="ph:court-basketball" class="w-5 h-5" /> Skatīt laukumus
           </NuxtLink>
         </div>
       </div>
@@ -137,6 +137,6 @@
 </template>
 
 <script setup>
-// Landing page — no special logic needed, just navigation links
-// The page is public and requires no authentication
+import { useAuthStore } from '~/stores/auth'
+const authStore = useAuthStore()
 </script>

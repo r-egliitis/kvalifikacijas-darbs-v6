@@ -16,7 +16,7 @@
         to="/games/challenge"
         class="inline-flex items-center gap-2 bg-primary text-white font-semibold px-4 py-2 rounded-xl hover:bg-primary/90 transition text-sm"
       >
-        ⚔️ Sūtīt izaicinājumu
+        <Icon name="ph:sword" class="w-4 h-4" /> Sūtīt izaicinājumu
       </NuxtLink>
     </div>
 
@@ -43,13 +43,13 @@
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-16 text-secondary">
-      <div class="text-4xl mb-3">⏳</div>
+      <Icon name="ph:hourglass" class="w-12 h-12 mx-auto mb-3" />
       <p>Ielādē...</p>
     </div>
 
     <!-- No team (admin bypasses this) -->
     <div v-else-if="!myTeamId && !authStore.isAdmin" class="text-center py-16 text-secondary">
-      <div class="text-5xl mb-4">🏀</div>
+      <Icon name="ph:basketball" class="w-16 h-16 mx-auto mb-4" />
       <p class="font-medium">Nav komandas</p>
       <p class="text-sm mt-1">
         <NuxtLink to="/teams" class="text-primary hover:underline">Pievienojies komandai</NuxtLink>
@@ -65,7 +65,7 @@
       <div v-if="activeTab === 'pending'">
 
         <div v-if="pendingChallenges.length === 0" class="text-center py-12 text-secondary">
-          <div class="text-5xl mb-4">⚔️</div>
+          <Icon name="ph:sword" class="w-16 h-16 mx-auto mb-4" />
           <p class="font-medium">Nav gaidošo izaicinājumu</p>
         </div>
 
@@ -83,8 +83,8 @@
                   <span class="text-secondary font-normal mx-2">vs</span>
                   {{ ch.challengedName }}
                 </p>
-                <p class="text-secondary text-sm mt-0.5">📍 {{ ch.courtName }}</p>
-                <p class="text-secondary text-sm">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+                <p class="flex items-center gap-1 text-secondary text-sm mt-0.5"><Icon name="ph:map-pin" class="w-3.5 h-3.5 shrink-0" /> {{ ch.courtName }}</p>
+                <p class="flex items-center gap-1 text-secondary text-sm"><Icon name="ph:clock" class="w-3.5 h-3.5 shrink-0" /> {{ formatDate(ch.scheduled_at) }}</p>
                 <p v-if="ch.comment" class="text-secondary text-sm mt-1 italic">„{{ ch.comment }}"</p>
               </div>
               <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 shrink-0">
@@ -157,7 +157,7 @@
       <div v-if="activeTab === 'accepted'">
 
         <div v-if="acceptedChallenges.length === 0" class="text-center py-12 text-secondary">
-          <div class="text-5xl mb-4">🏆</div>
+          <Icon name="ph:trophy" class="w-16 h-16 mx-auto mb-4" />
           <p class="font-medium">Nav pieņemtu izaicinājumu</p>
         </div>
 
@@ -174,8 +174,8 @@
                 <span class="text-secondary font-normal mx-2">vs</span>
                 {{ ch.challengedName }}
               </p>
-              <p class="text-secondary text-sm mt-0.5">📍 {{ ch.courtName }}</p>
-              <p class="text-secondary text-sm">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+              <p class="flex items-center gap-1 text-secondary text-sm mt-0.5"><Icon name="ph:map-pin" class="w-3.5 h-3.5 shrink-0" /> {{ ch.courtName }}</p>
+              <p class="flex items-center gap-1 text-secondary text-sm"><Icon name="ph:clock" class="w-3.5 h-3.5 shrink-0" /> {{ formatDate(ch.scheduled_at) }}</p>
               <p v-if="ch.comment" class="text-secondary text-sm mt-1 italic">„{{ ch.comment }}"</p>
             </div>
 
@@ -252,8 +252,8 @@
             <div v-if="isCaptain" class="border-t border-secondary/10 pt-4">
 
               <!-- Too early to score -->
-              <div v-if="!canSubmitScore(ch)" class="text-sm text-secondary">
-                ⏳ Rezultātu var ievadīt pēc spēles laika ({{ formatDate(ch.scheduled_at) }}).
+              <div v-if="!canSubmitScore(ch)" class="flex items-center gap-1.5 text-sm text-secondary">
+                <Icon name="ph:hourglass" class="w-4 h-4 shrink-0" /> Rezultātu var ievadīt pēc spēles laika ({{ formatDate(ch.scheduled_at) }}).
               </div>
 
               <template v-else>
@@ -263,7 +263,7 @@
                   v-if="mismatchIds.includes(ch.challenge_id)"
                   class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 rounded-xl px-3 py-2 text-sm mb-3"
                 >
-                  ⚠️ Rezultāti nesakrita. Lūdzu ievadiet rezultātu no jauna.
+                  <Icon name="ph:warning" class="w-4 h-4 shrink-0 inline-block align-middle mr-1" />Rezultāti nesakrita. Lūdzu ievadiet rezultātu no jauna.
                 </div>
 
                 <!-- Other captain already submitted (and I haven't yet) -->
@@ -271,7 +271,7 @@
                   v-if="otherCaptainSubmitted(ch) && !myCaptainSubmitted(ch)"
                   class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 rounded-xl px-3 py-2 text-sm mb-3"
                 >
-                  ℹ️ Otra komanda iesniedza:
+                  <Icon name="ph:info" class="w-4 h-4 shrink-0 inline-block align-middle mr-1" />Otra komanda iesniedza:
                   <span class="font-mono font-bold">
                     {{ otherScore(ch).t1 }} : {{ otherScore(ch).t2 }}
                   </span>
@@ -283,7 +283,7 @@
                   v-if="myCaptainSubmitted(ch) && !otherCaptainSubmitted(ch)"
                   class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl px-3 py-2 text-sm"
                 >
-                  ✅ Jūs iesniedzāt
+                  <Icon name="ph:check-circle" class="w-4 h-4 shrink-0 inline-block align-middle mr-1" />Jūs iesniedzāt
                   <span class="font-mono font-bold">{{ myScore(ch).t1 }} : {{ myScore(ch).t2 }}</span>
                   — gaida otras komandas apstiprinājumu.
                 </div>
@@ -332,7 +332,7 @@
 
             <!-- Non-captain: just show "game confirmed" message -->
             <div v-else class="border-t border-secondary/10 pt-3 text-sm text-secondary">
-              ✅ Izaicinājums apstiprināts — gaida spēles laiku
+              <Icon name="ph:check-circle" class="w-4 h-4 inline-block align-middle mr-1" />Izaicinājums apstiprināts — gaida spēles laiku
             </div>
 
           </div>
@@ -345,7 +345,7 @@
       <div v-if="activeTab === 'history'">
 
         <div v-if="completedChallenges.length === 0" class="text-center py-12 text-secondary">
-          <div class="text-5xl mb-4">📊</div>
+          <Icon name="ph:chart-bar" class="w-16 h-16 mx-auto mb-4" />
           <p class="font-medium">Spēļu vēsture ir tukša</p>
           <p class="text-sm mt-1">Pabeigtās spēles parādīsies šeit.</p>
         </div>
@@ -390,7 +390,7 @@
       <div v-if="activeTab === 'admin' && authStore.isAdmin">
 
         <div v-if="adminChallenges.length === 0" class="text-center py-12 text-secondary">
-          <div class="text-5xl mb-4">📋</div>
+          <Icon name="ph:clipboard" class="w-16 h-16 mx-auto mb-4" />
           <p class="font-medium">Nav neviena izaicinājuma</p>
         </div>
 
@@ -403,8 +403,8 @@
             <div class="flex items-start justify-between gap-3 mb-2">
               <div class="flex-1 min-w-0">
                 <p class="font-bold text-sm truncate">{{ ch.challengerName }} vs {{ ch.challengedName }}</p>
-                <p class="text-xs text-secondary">📍 {{ ch.courtName }}</p>
-                <p class="text-xs text-secondary">🕐 {{ formatDate(ch.scheduled_at) }}</p>
+                <p class="flex items-center gap-1 text-xs text-secondary"><Icon name="ph:map-pin" class="w-3 h-3 shrink-0" /> {{ ch.courtName }}</p>
+                <p class="flex items-center gap-1 text-xs text-secondary"><Icon name="ph:clock" class="w-3 h-3 shrink-0" /> {{ formatDate(ch.scheduled_at) }}</p>
               </div>
               <span
                 class="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
@@ -432,8 +432,8 @@
             <div class="flex gap-2 mt-3 pt-3 border-t border-secondary/10">
               <button
                 @click="openAdminDeleteChallenge(ch)"
-                class="text-xs text-red-500 font-semibold hover:underline"
-              >🗑️ Dzēst</button>
+                class="inline-flex items-center gap-1 text-xs text-red-500 font-semibold hover:underline"
+              ><Icon name="ph:trash" class="w-3.5 h-3.5" /> Dzēst</button>
             </div>
           </div>
         </div>

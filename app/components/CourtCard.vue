@@ -19,12 +19,12 @@
         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
         : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'"
     >
-      {{ court.outdoor ? '☀️ Ārtelpas' : '🏢 Iekštelpas' }}
+      <Icon :name="court.outdoor ? 'ph:sun' : 'ph:building'" class="w-3.5 h-3.5 inline-block align-middle mr-1" />{{ court.outdoor ? 'Ārtelpas' : 'Iekštelpas' }}
     </span>
 
     <!-- Address -->
     <p v-if="court.address" class="text-secondary text-sm flex items-start gap-1.5 mb-3">
-      <span class="mt-0.5">📍</span>
+      <Icon name="ph:map-pin" class="w-4 h-4 mt-0.5 shrink-0" />
       <span>{{ court.address }}</span>
     </p>
 
@@ -36,7 +36,7 @@
       rel="noopener noreferrer"
       class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
     >
-      🗺️ Skatīt kartē
+      <Icon name="ph:map-trifold" class="w-4 h-4" /> Skatīt kartē
     </a>
 
   </div>

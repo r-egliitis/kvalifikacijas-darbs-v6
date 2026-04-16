@@ -20,6 +20,9 @@ export default {
     extend: {
       // Wire CSS custom properties as Tailwind color tokens.
       // These reference the variables defined in assets/css/main.css.
+      fontFamily: {
+        satoshi: ['Satoshi', 'sans-serif'],
+      },
       colors: {
         primary:    'var(--color-primary)',
         secondary:  'var(--color-secondary)',

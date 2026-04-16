@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss', // Utility-first CSS framework
     '@pinia/nuxt',         // Global state management (stores)
+    '@nuxt/icon',          // SVG icon system with custom collections
   ],
 
   // Tell @nuxtjs/tailwindcss to use our custom CSS file (with color variables + @tailwind directives)

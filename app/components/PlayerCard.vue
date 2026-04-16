@@ -27,7 +27,7 @@
       class="rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border-2 border-surface shadow"
       :class="compact ? 'w-8 h-8 text-base' : 'w-12 h-12 text-xl'"
     >
-      🙋
+      <Icon name="ph:user" class="text-primary/50" :class="compact ? 'w-5 h-5' : 'w-7 h-7'" />
     </div>
 
     <!-- Name and badges -->

@@ -7,29 +7,66 @@
   Tailwind is wired to use these variables (see tailwind.config.js).
 */
 
+/* ─── Satoshi variable font ─────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Satoshi';
+  src: url('~/assets/fonts/satoshi/Satoshi_Complete/Fonts/WEB/fonts/Satoshi-Variable.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('~/assets/fonts/satoshi/Satoshi_Complete/Fonts/WEB/fonts/Satoshi-VariableItalic.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* ─── Tailwind base layers ─────────────────────────────────────────────────── */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Color palette reference:
+    #0b090a — Black          (pure dark base)
+    #161a1d — Carbon Black   (dark surfaces)
+    #660708 — Dark Garnet    (deep accent)
+    #a4161a — Mahogany Red   (mid accent)
+    #ba181b — Mahogany Red   (brand primary)
+    #e5383b — Strawberry Red (vibrant highlight)
+    #b1a7a6 — Silver         (muted secondary)
+    #d3d3d3 — Dust Grey      (light borders/muted)
+    #f5f3f4 — White Smoke    (light background)
+    #ffffff — White          (pure surface)
+*/
+
 /* ─── Light mode color variables (default) ─────────────────────────────────── */
 :root {
-  --color-primary:    #1D4ED8;  /* Blue — main buttons and interactive elements */
-  --color-secondary:  #6B7280;  /* Gray — secondary text, borders, hints */
-  --color-accent:     #F59E0B;  /* Amber — highlights, badges, emphasis */
-  --color-background: #F9FAFB;  /* Near-white — main page background */
-  --color-surface:    #FFFFFF;  /* White — cards, modals, dropdowns */
-  --color-text:       #111827;  /* Very dark gray — main body text */
+  --color-primary:    #ba181b;  /* Mahogany Red — main buttons and interactive elements */
+  --color-secondary:  #b1a7a6;  /* Silver — secondary text, borders, hints */
+  --color-accent:     #660708;  /* Dark Garnet — highlights, badges, emphasis */
+  --color-background: #f5f3f4;  /* White Smoke — main page background */
+  --color-surface:    #ffffff;  /* White — cards, modals, dropdowns */
+  --color-text:       #0b090a;  /* Black — main body text */
 }
 
 /* ─── Dark mode color variables (activated when <html> has class="dark") ───── */
 .dark {
-  --color-primary:    #3B82F6;  /* Lighter blue — still readable on dark backgrounds */
-  --color-secondary:  #9CA3AF;  /* Medium gray — subtle text on dark */
-  --color-accent:     #FBBF24;  /* Bright amber — stands out on dark */
-  --color-background: #111827;  /* Very dark — page background */
-  --color-surface:    #1F2937;  /* Dark gray — card/modal surfaces */
-  --color-text:       #F9FAFB;  /* Near-white — main text on dark background */
+  --color-primary:    #e5383b;  /* Strawberry Red — more vibrant on dark backgrounds */
+  --color-secondary:  #b1a7a6;  /* Silver — secondary text, borders, hints */
+  --color-accent:     #a4161a;  /* Mahogany Red — highlights, badges, emphasis */
+  --color-background: #0b090a;  /* Black — main page background */
+  --color-surface:    #161a1d;  /* Carbon Black — cards, modals, dropdowns */
+  --color-text:       #f5f3f4;  /* White Smoke — main text on dark background */
+}
+
+/* ─── Dark mode map tile color boost ───────────────────────────────────────── */
+/* CartoDB dark_all tiles are very desaturated — boost saturation to bring out
+   road colors, water tints, and labels without losing the dark background.    */
+.dark .leaflet-tile-pane {
+  filter: saturate(4) brightness(0.85);
 }
 
 /* ─── Global base styles ────────────────────────────────────────────────────── */
@@ -37,6 +74,7 @@ body {
   /* Apply background and text colors from our variable system */
   background-color: var(--color-background);
   color: var(--color-text);
+  font-family: 'Satoshi', sans-serif;
   /* Smooth transition when switching between light and dark modes */
   transition: background-color 0.2s ease, color 0.2s ease;
 }

@@ -28,9 +28,9 @@
         />
         <div
           v-else
-          class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center text-4xl border-4 border-surface shadow"
+          class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-4 border-surface shadow"
         >
-          🙋
+          <Icon name="ph:user" class="w-12 h-12 text-primary/60" />
         </div>
 
         <!-- File input for photo upload -->

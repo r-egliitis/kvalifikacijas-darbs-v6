@@ -47,7 +47,7 @@
                 : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'"
               class="text-xs font-semibold px-2.5 py-1 rounded-full"
             >
-              {{ selectedCourt.outdoor ? '☀️ Ārtelpas' : '🏢 Iekštelpas' }}
+              <Icon :name="selectedCourt.outdoor ? 'ph:sun' : 'ph:building'" class="w-3.5 h-3.5 inline-block align-middle mr-1" />{{ selectedCourt.outdoor ? 'Ārtelpas' : 'Iekštelpas' }}
             </span>
           </div>
         </div>
@@ -65,13 +65,13 @@
 
     <!-- ── Loading state ─────────────────────────────────────────────── -->
     <div v-if="loading" class="text-center py-10 text-secondary">
-      <div class="text-4xl mb-3">⏳</div>
+      <Icon name="ph:hourglass" class="w-12 h-12 mx-auto mb-3" />
       <p>Ielādē laukumus...</p>
     </div>
 
     <!-- ── Empty state ───────────────────────────────────────────────── -->
     <div v-else-if="filteredCourts.length === 0" class="text-center py-10 text-secondary">
-      <div class="text-5xl mb-4">🏟️</div>
+      <Icon name="ph:court-basketball" class="w-16 h-16 mx-auto mb-4" />
       <p class="font-medium">Laukumi nav atrasti</p>
       <p v-if="authStore.isAdmin" class="text-sm mt-1">
         <NuxtLink to="/courts/add" class="text-primary hover:underline">Pievienot pirmo laukumu</NuxtLink>
@@ -112,7 +112,7 @@
                 : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'"
               class="text-xs font-semibold px-2 py-0.5 rounded-full"
             >
-              {{ court.outdoor ? '☀️' : '🏢' }}
+              <Icon :name="court.outdoor ? 'ph:sun' : 'ph:building'" class="w-3.5 h-3.5" />
             </span>
             <span
               v-if="court._distance != null"
@@ -131,14 +131,14 @@
             class="p-2 rounded-lg hover:bg-secondary/10 text-secondary hover:text-primary transition"
             title="Rediģēt"
           >
-            ✏️
+            <Icon name="ph:pencil" class="w-4 h-4" />
           </button>
           <button
             @click.stop="openDeleteConfirm(court)"
             class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-secondary hover:text-red-500 transition"
             title="Dzēst"
           >
-            🗑️
+            <Icon name="ph:trash" class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -176,10 +176,10 @@
             <div class="flex gap-3">
               <button type="button" @click="editModal.form.outdoor = false"
                 :class="!editModal.form.outdoor ? 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300' : 'border-secondary/30 text-secondary'"
-                class="flex-1 py-2 rounded-xl border text-sm font-medium transition">🏢 Iekštelpas</button>
+                class="inline-flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border text-sm font-medium transition"><Icon name="ph:building" class="w-4 h-4" /> Iekštelpas</button>
               <button type="button" @click="editModal.form.outdoor = true"
                 :class="editModal.form.outdoor ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-300' : 'border-secondary/30 text-secondary'"
-                class="flex-1 py-2 rounded-xl border text-sm font-medium transition">☀️ Ārtelpas</button>
+                class="inline-flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border text-sm font-medium transition"><Icon name="ph:sun" class="w-4 h-4" /> Ārtelpas</button>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -265,9 +265,11 @@ const userLocation = ref(null)   // { lat, lng } from GPS
 const referencePoint = ref(null) // { lat, lng } used for distance sorting
 
 // Leaflet map instance and markers (not reactive — managed imperatively)
-let map = null
-let markers = []
-let L = null
+let map         = null
+let markers     = []
+let L           = null
+let tileLayer   = null
+let darkObserver = null
 
 // ─── Computed ──────────────────────────────────────────────────────────────
 
@@ -438,10 +440,23 @@ onMounted(async () => {
   // 3. Create map centered on Latvia
   map = L.map('courts-map').setView([56.95, 24.11], 7)
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  }).addTo(map)
+  function getCartoDBoUrl() {
+    return document.documentElement.classList.contains('dark')
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+  }
+
+  const cartoAttribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+
+  tileLayer = L.tileLayer(getCartoDBoUrl(), { attribution: cartoAttribution, maxZoom: 19 }).addTo(map)
+
+  // Swap tiles when the user toggles dark mode
+  darkObserver = new MutationObserver(() => {
+    if (!map) return
+    tileLayer.remove()
+    tileLayer = L.tileLayer(getCartoDBoUrl(), { attribution: cartoAttribution, maxZoom: 19 }).addTo(map)
+  })
+  darkObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 
   drawMarkers()
 
@@ -458,6 +473,11 @@ onMounted(async () => {
       () => { /* GPS denied or unavailable — sort alphabetically */ }
     )
   }
+})
+
+onUnmounted(() => {
+  darkObserver?.disconnect()
+  map?.remove()
 })
 
 // Redraw markers whenever the search filter changes

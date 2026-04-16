@@ -5,7 +5,7 @@
   -->
   <footer class="bg-surface border-t border-secondary/20 mt-auto py-6">
     <div class="max-w-6xl mx-auto px-4 text-center text-secondary text-sm">
-      <p>🏀 Basketbola Pārvaldības Sistēma</p>
+      <p class="flex items-center justify-center gap-1.5"><Icon name="ph:basketball" class="w-4 h-4" /> Basketbola Pārvaldības Sistēma</p>
       <p class="mt-1 text-xs opacity-60">Izstrādāts kā kvalifikācijas darbs · RVT Datorikas nodaļa</p>
     </div>
   </footer>

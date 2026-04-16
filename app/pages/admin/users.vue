@@ -8,7 +8,7 @@
 
     <!-- Access denied -->
     <div v-if="!authStore.isAdmin" class="text-center py-16 text-secondary">
-      <div class="text-5xl mb-4">🔒</div>
+      <Icon name="ph:lock" class="w-16 h-16 mx-auto mb-4" />
       <p class="font-medium">Piekļuve liegta</p>
     </div>
 
@@ -28,7 +28,7 @@
 
       <!-- Loading -->
       <div v-if="loading" class="text-center py-16 text-secondary">
-        <div class="text-4xl mb-3">⏳</div>
+        <Icon name="ph:hourglass" class="w-12 h-12 mx-auto mb-3" />
         <p>Ielādē...</p>
       </div>
 
@@ -42,7 +42,7 @@
           <!-- Avatar -->
           <img v-if="p.picture" :src="p.picture"
             class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-          <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">🙋</div>
+          <div v-else class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"><Icon name="ph:user" class="w-5 h-5 text-primary/50" /></div>
 
           <!-- Info -->
           <div class="flex-1 min-w-0">
@@ -59,7 +59,7 @@
             <!-- Edit -->
             <button @click="openEditProfile(p)"
               class="p-2 rounded-lg hover:bg-secondary/10 text-secondary hover:text-primary transition text-sm"
-              title="Rediģēt">✏️</button>
+              title="Rediģēt"><Icon name="ph:pencil" class="w-4 h-4" /></button>
             <!-- Grant/revoke admin -->
             <button
               @click="openAdminConfirm(p)"
@@ -67,11 +67,11 @@
               class="p-2 rounded-lg hover:bg-secondary/10 transition text-sm"
               :class="p.is_admin ? 'text-red-500 hover:text-red-600' : 'text-secondary hover:text-amber-500'"
               :title="p.is_admin ? 'Atņemt admina tiesības' : 'Piešķirt admina tiesības'"
-            >👑</button>
+            ><Icon name="ph:crown" class="w-4 h-4" /></button>
             <!-- Delete -->
             <button @click="openDeleteProfile(p)"
-              class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-secondary hover:text-red-500 transition text-sm"
-              title="Dzēst">🗑️</button>
+              class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-secondary hover:text-red-500 transition"
+              title="Dzēst"><Icon name="ph:trash" class="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -101,7 +101,7 @@
               <img v-if="editModal.previewUrl || editModal.currentPicture"
                 :src="editModal.previewUrl || editModal.currentPicture"
                 class="w-14 h-14 rounded-full object-cover border border-secondary/20 flex-shrink-0" />
-              <div v-else class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">🙋</div>
+              <div v-else class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"><Icon name="ph:user" class="w-7 h-7 text-primary/50" /></div>
               <div class="flex flex-col gap-1.5">
                 <label class="cursor-pointer text-sm text-primary font-medium hover:underline">
                   Mainīt foto

@@ -81,8 +81,8 @@
             alt="Logo priekšskatījums"
             class="w-16 h-16 rounded-xl object-cover border border-secondary/20"
           />
-          <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center text-2xl">
-            🏀
+          <div v-else class="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center">
+            <Icon name="ph:basketball" class="w-8 h-8 text-primary/40" />
           </div>
 
           <label class="cursor-pointer text-sm text-primary font-medium hover:underline">

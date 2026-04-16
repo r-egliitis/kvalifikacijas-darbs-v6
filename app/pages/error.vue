@@ -5,7 +5,11 @@
   -->
   <div class="min-h-[80vh] flex items-center justify-center px-4">
     <div class="text-center">
-      <div class="text-7xl mb-6">{{ error?.statusCode === 404 ? '🏀' : '⚠️' }}</div>
+      <Icon
+        :name="error?.statusCode === 404 ? 'ph:basketball' : 'ph:warning'"
+        class="w-24 h-24 mx-auto mb-6"
+        :class="error?.statusCode === 404 ? 'text-primary' : 'text-amber-500'"
+      />
       <h1 class="text-3xl font-bold mb-2">
         {{ error?.statusCode === 404 ? 'Lapa nav atrasta' : 'Kaut kas nogāja greizi' }}
       </h1>
